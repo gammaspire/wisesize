@@ -1,2 +1,2 @@
-# wisesize
-Various scripts for the analysis of WISESize galaxies
+# WISEsize
+Various scripts for the analysis of WISESize galaxies.
