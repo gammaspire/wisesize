@@ -13,10 +13,11 @@ from photutils import detect_threshold, detect_sources
 
 from photutils.segmentation import SourceCatalog
 
-from photutils import EllipticalAperture
+from photutils import EllipticalAperture, CircularAperture
 
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import aperture_photometry
+from photutils.detection import find_peaks
 
 #for smoothing the images...I think
 from astropy.convolution import convolve, Gaussian2DKernel
@@ -182,7 +183,7 @@ class wise_ellipse():
         print(f'STDDEV W1 --> x={g_w1.x_stddev[0]}, y={g_w1.y_stddev[0]}')
         print(f'FITTED PSF --> x={self.sig_kernelx}, y={self.sig_kernely}')
         
-        
+    #quick plot check of the fitted PSF found with self.make_gauss2d_kernel()
     def check_fitted_psf(self):
         
         plt.figure()
@@ -192,36 +193,46 @@ class wise_ellipse():
         plt.ylabel('y px',fontsize=14)
         plt.show()    
     
-    def plot_conv_mosaic(self, savefig=False):
-        images = [self.w3_im,self.w1_im,self.smoothed_w1,np.abs(self.smoothed_w1-self.w1_im)]
-        titles = ['W3 Image','W1 Image',r'W1$_{conv}$ Image',r'W1 - W1$_{conv}$']
+    def plot_conv_mosaics(self, savefig=False):
+        
+        norm_w1 = self.smoothed_w1/np.max(self.smoothed_w1)
+        norm_w3 = self.w3_im/np.max(self.w3_im)
+        
+        im_rat_w1 = np.abs(self.smoothed_w1-self.w1_im)   #not normalized
+        im_rat_w3 = np.abs(norm_w1-norm_w3)   #normalized
         
         percentile1 = 0.5
         percentile2 = 99.5
         
-        v1 = [scoreatpercentile(self.w3_masked,percentile1),
-            scoreatpercentile(self.w1_masked,percentile1),
-            scoreatpercentile(self.w1_masked,percentile1),
-            scoreatpercentile(np.abs(self.smoothed_w1-self.w1_im),percentile1)]
-        v2 = [scoreatpercentile(self.w3_masked,percentile2),
-            scoreatpercentile(self.w1_masked,percentile2),
-            scoreatpercentile(self.w1_masked,percentile2),
-            scoreatpercentile(np.abs(self.smoothed_w1-self.w1_im),percentile2)]
+        images = [self.w1_im, self.smoothed_w1, im_rat_w1,
+                 self.w3_im, self.smoothed_w1, im_rat_w3]
+        titles = ['W1 Image',r'W1$_{conv}$ Image',r'W1 - W1$_{conv}$ (W1 stretch)',
+                  'W3 Image',r'W1$_{conv}$ Image',r'W3 - W1$_{conv}$ (W3 stretch)']
         
-        norms = [ simple_norm(self.w3_masked,'asinh',max_percent=percentile2,min_cut=v1[0],max_cut=v2[0]),
-         simple_norm(self.w1_masked,'asinh',max_percent=percentile2,min_cut=v1[1],max_cut=v2[1]), 
-         simple_norm(self.w1_masked, 'asinh', max_percent=percentile2, min_cut=v1[2], max_cut=v2[2]),  
-         simple_norm(np.abs(self.smoothed_w1-self.w1_im), 'asinh', max_percent=percentile2, min_cut=v1[3], max_cut=v2[3])
+        v1 = [scoreatpercentile(self.w1_masked,percentile1),
+            scoreatpercentile(self.w3_masked,percentile1),
+             scoreatpercentile(norm_w3,percentile1)]
+        
+        v2 = [scoreatpercentile(self.w1_masked,percentile2),
+            scoreatpercentile(self.w3_masked,percentile2),
+             scoreatpercentile(norm_w3,percentile2)]
+        
+        norms = [
+         simple_norm(self.w1_masked,'asinh',max_percent=percentile2,min_cut=v1[0],max_cut=v2[0]), 
+         simple_norm(self.w1_masked, 'asinh', max_percent=percentile2, min_cut=v1[0], max_cut=v2[0]), 
+         simple_norm(self.w1_masked, 'asinh', max_percent=percentile2, min_cut=v1[0], max_cut=v2[0]),
+         simple_norm(self.w3_masked,'asinh',max_percent=percentile2,min_cut=v1[1],max_cut=v2[1]),
+         simple_norm(self.w1_masked, 'asinh', max_percent=percentile2, min_cut=v1[0], max_cut=v2[0]),
+         simple_norm(norm_w3, 'asinh', max_percent=percentile2, min_cut=v1[2], max_cut=v2[2])
                 ]
-
+        
         plt.figure(figsize=(11,9))
         for i, im in enumerate(images):
-            plt.subplot(1,4,i+1)
-            if i!=3:
-                plt.imshow(im,origin='lower',norm=norms[i])
-            else:
-                plt.imshow(im,origin='lower',norm=norms[2])
+            plt.subplot(2,3,i+1)
+            plt.imshow(im,origin='lower',norm=norms[i])
             plt.title(titles[i],fontsize=15)        
+        
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=.005)
         
         if savefig:
             plt.savefig(f'{homedir}/Desktop/{self.galaxy_name}_kernel.png', dpi=100, bbox_inches='tight', pad_inches=0.2)
@@ -231,7 +242,7 @@ class wise_ellipse():
     def run_two_image_phot(self,savefig=False):
 
         self.make_gauss2d_kernel()
-        self.plot_conv_mosaic(savefig=savefig)
+        self.plot_conv_mosaics(savefig=savefig)
         
         self.detect_objects()
         self.find_central_object() 
@@ -240,12 +251,69 @@ class wise_ellipse():
         self.get_all_frac_masked_pixels()
         self.calc_sb()
     
+    def check_ptsources(self,box_size=5):
+        '''
+        -perform elliptical photometry on point sources in an image 
+         (i.e., prominent foreground stars)
+        -should only run if there is more than one object in the detection 
+         list with a peak value above the given threshold in W1 image --> 
+         must be 5-sigma above the background (median)
+        -this will be a decent indicator of how well the PSF applied to W1 replicates the
+         blurring effects in the W3 image
+        -output will also include figure of encircled detected sources
+        '''
+        
+        im_std = np.std(self.smoothed_w1)
+        im_median = np.median(self.smoothed_w1)
+        im_threshold = im_median + (5*im_std)
+        
+        tbl = find_peaks(self.smoothed_w1, threshold=im_threshold, box_size=box_size)
+        #assumes galaxy center lies ~center of the image
+        xc, yc = len(self.smoothed_w1)/2, len(self.smoothed_w1)/2
+        
+        #flag to isolate objects that are NOT the galaxy. we want the star(s), after all
+        galaxy_dist_flag = (np.sqrt((tbl['x_peak'] - xc)**2 + (tbl['y_peak'] - yc)**2))>2
+        
+        if len(tbl)>1:
+            #apply flag if more than just the galaxy is in the table
+            tbl_stars = tbl[galaxy_dist_flag]
+            
+            print('photutils detected the following objects:')
+            print(tbl)
+            
+            #isolate star with brightest peak --> more likely to have more robust photometry
+            tbl_brightest_star = tbl_stars[tbl_stars['peak_value']==np.max(tbl_stars['peak_value'])]
+                        
+            plt.figure(figsize=(3,3))
+            positions=np.transpose((tbl['x_peak'],tbl['y_peak']))
+            #silly photutils.aperture coordinate conventions require floats ONLY
+            self.main_center = (tbl_brightest_star['x_peak'].data[0],
+                                tbl_brightest_star['y_peak'].data[0])
+            self.xcenter = self.main_center[0]
+            self.ycenter = self.main_center[1]
+            
+            apertures=CircularAperture(positions,r=5)
+            main_aperture = CircularAperture(self.main_center,r=5)
+            plt.imshow(self.smoothed_w1, cmap='Greys_r', origin='lower')
+            apertures.plot(color='r')
+            main_aperture.plot(color='cyan')
+            plt.show()
+            
+            self.get_ellipse_guess(star=True)
+            self.measure_phot(star=True)
+            self.calc_sb()
+            self.plot_profiles(flux_yscale='linear',star=True)
+            
+        else:
+            'No stars detected! Your box_size might be too high/low or there are no prominent foreground stars in your image.'
+            
+ 
     def detect_objects(self, snrcut=1.5, npixels=10):
         ''' 
         run photutils detect_sources to find objects in fov.  
         you can specify the snrcut, and only pixels above this value will be counted.
         '''
-
+        
         try:
             
             skystd = self.w1_head['SKYSTD']
@@ -348,42 +416,55 @@ class wise_ellipse():
         self.boolmask = mask
         self.mask_flag = True
         
-    def get_ellipse_guess(self, r=2.5):
+    def get_ellipse_guess(self, r=2.5, star=False):
         '''
         this gets the guess for the ellipse geometry from the detection catalog 
         '''
-        obj = self.cat[self.objectIndex]
-        self.xcenter = obj.xcentroid
-        self.ycenter = obj.ycentroid
-
-        self.position = (obj.xcentroid, obj.ycentroid)
         
-        #print(self.position,self.xcenter,obj.xcentroid,self.ycenter,obj.ycentroid)
+        #for performing elliptical photometry on point sources!
+        if star:
+            self.xcenter = self.main_center[0]
+            self.ycenter = self.main_center[1]
+            self.position = self.main_center
+            self.sma = 3   #approximated for smoothed W1 point sources
+            self.start_size = self.sma
+            self.b = self.sma
+            self.eps = 0   #no ellipticity for circles
+            self.theta = 0   #no position angle...just a little ol' point source
         
-        self.sma = obj.semimajor_sigma.value * r
-        self.start_size = self.sma
-        self.b = obj.semiminor_sigma.value * r
-        self.eps = 1 - self.b/self.sma
-        self.source_sum = self.cat[self.objectIndex].segment_flux
-        self.sky_centroid = obj.sky_centroid
-        # orientation is angle in radians, CCW relative to +x axis
-        t = obj.orientation.value
-        #print('inside get_ellipse_guess, orientation = ',obj.orientation)
-        if t < 0: # convert to positive angle wrt +x axis
-            self.theta = np.pi+obj.orientation.to(u.rad).value
         else:
-            self.theta = obj.orientation.to(u.rad).value # orientation in radians
-        # EllipticalAperture gives rotation angle in radians from +x axis, CCW
+            obj = self.cat[self.objectIndex]
+            self.xcenter = obj.xcentroid
+            self.ycenter = obj.ycentroid
+
+            self.position = (obj.xcentroid, obj.ycentroid)
+
+            #print(self.position,self.xcenter,obj.xcentroid,self.ycenter,obj.ycentroid)
+
+            self.sma = obj.semimajor_sigma.value * r
+            self.start_size = self.sma
+            self.b = obj.semiminor_sigma.value * r
+            self.eps = 1 - self.b/self.sma
+            # orientation is angle in radians, CCW relative to +x axis
+            t = obj.orientation.value
+            #print('inside get_ellipse_guess, orientation = ',obj.orientation)
+            if t < 0: # convert to positive angle wrt +x axis
+                self.theta = np.pi+obj.orientation.to(u.rad).value
+            else:
+                self.theta = obj.orientation.to(u.rad).value # orientation in radians
+            # EllipticalAperture gives rotation angle in radians from +x axis, CCW
+        
         try:
             self.aperture = EllipticalAperture(self.position, self.sma, self.b, theta=self.theta)
         except ValueError:
             print("\nTrouble in paradise...")
             print(self.position,self.sma,self.b,self.theta)
             sys.exit()
+        
         # EllipseGeometry using angle in radians, CCW from +x axis
         self.guess = EllipseGeometry(x0=self.xcenter,y0=self.ycenter,sma=self.sma,eps = self.eps, pa = self.theta)
     
-    def measure_phot(self):
+    def measure_phot(self, star=False):
         '''
         # rmax is max radius to measure ellipse
         # could cut this off based on SNR
@@ -396,9 +477,15 @@ class wise_ellipse():
         # look for where the semi-major axis hits the edge of the image
         # could by on side (limited by x range) or on top/bottom (limited by y range)
         # 
-        rmax = np.min([(self.ximage_max - self.xcenter)/abs(np.cos(self.theta)),\
-                       (self.yimage_max - self.ycenter)/abs(np.sin(self.theta))])
-
+        
+        if star:
+            self.fwhm = 0.2/0.5
+            rmax = 2.5*self.sma
+        
+        else:
+            rmax = np.min([(self.ximage_max - self.xcenter)/abs(np.cos(self.theta)),\
+                           (self.yimage_max - self.ycenter)/abs(np.sin(self.theta))])
+        
         index = np.arange(80)
         apertures = (index+1)*.5*self.fwhm*(1+(index+1)*.1)
         # cut off apertures at edge of image
@@ -408,8 +495,8 @@ class wise_ellipse():
         self.area = np.pi*self.apertures_a*self.apertures_b # area of each ellipse
 
         self.flux1 = np.zeros(len(self.apertures_a),'f')
-        self.flux1_err = np.zeros(len(self.apertures_a),'f')
         self.flux2 = np.zeros(len(self.apertures_a),'f')
+        self.flux1_err = np.zeros(len(self.apertures_a),'f')
         self.flux2_err = np.zeros(len(self.apertures_a),'f')
         self.allellipses = []
         for i in range(len(self.apertures_a)):
@@ -417,21 +504,30 @@ class wise_ellipse():
             ap = EllipticalAperture((self.xcenter, self.ycenter),self.apertures_a[i],self.apertures_b[i],self.theta)#,ai,bi,theta) for ai,bi in zip(a,b)]
             self.allellipses.append(ap)
 
-            if self.mask_flag:
-                # check for nans, and add them to the mask
-                nan_mask = self.w1_im == np.nan
-                combined_mask =  self.boolmask | nan_mask
-                self.phot_table1 = aperture_photometry(self.smoothed_w1, ap, mask=combined_mask)
-                self.phot_table2 = aperture_photometry(self.w3_im, ap, mask=combined_mask)
+            if star:
+                self.phot_table1 = aperture_photometry(self.smoothed_w1, ap, method = 'subpixel', 
+                                                       subpixels=1)
+                self.phot_table2 = aperture_photometry(self.w3_im, ap, method = 'subpixel', 
+                                                       subpixels=1)
             else:
-                # subpixel is the method used by Source Extractor
-                self.phot_table1 = aperture_photometry(self.smoothed_w1, ap, method = 'subpixel', subpixels=5)
-                self.phot_table2 = aperture_photometry(self.smoothed_w1, ap, method = 'subpixel', subpixels=5)
+                if self.mask_flag:
+                    # check for nans, and add them to the mask
+                    nan_mask = self.w1_im == np.nan
+                    combined_mask =  self.boolmask | nan_mask
+                    self.phot_table1 = aperture_photometry(self.smoothed_w1, ap, mask=combined_mask)
+                    self.phot_table2 = aperture_photometry(self.w3_im, ap, mask=combined_mask)
+                else:
+                    # subpixel is the method used by Source Extractor
+                    self.phot_table1 = aperture_photometry(self.smoothed_w1, ap, method = 'subpixel', 
+                                                           subpixels=5)
+                    self.phot_table2 = aperture_photometry(self.w3_im, ap, method = 'subpixel', 
+                                                           subpixels=5)
+            
             self.flux1[i] = self.phot_table1['aperture_sum'][0]
+            self.flux2[i] = self.phot_table2['aperture_sum'][0]
             
             # calculate noise
             self.flux1_err[i] = self.get_noise_in_aper(self.flux1[i], self.area[i])
-            self.flux2[i] = self.phot_table2['aperture_sum'][0]
             self.flux2_err[i] = self.get_noise_in_aper(self.flux2[i], self.area[i])
     
     def calc_sb(self):
@@ -479,38 +575,68 @@ class wise_ellipse():
         self.pixel_area = ntotal
         self.masked_pixel_area = ntotal - nmasked
     
-    def plot_profiles(self,galaxyname=None):
+    def plot_profiles(self,galaxyname=None,flux_yscale='log',star=False,savefig=False):
         ''' enclosed flux and surface brightness profiles, save figure '''
+        
         plt.close("all")        
         plt.figure(figsize=(10,4))
         plt.subplots_adjust(wspace=.3)
-        plt.subplot(2,2,1)
-        #plt.plot(self.apertures_a,self.flux1,'bo')
-        plt.errorbar(self.apertures_a,self.flux1,self.flux1_err,fmt='b.')
+        
+        plt.subplot(2,3,1)
+        plt.errorbar(self.apertures_a,self.flux1,self.flux1_err,fmt='r.')
         plt.title('Smoothed W1 (3.4-micron)')
-        #plt.xlabel('semi-major axis (pixels)')
+        if star:
+            plt.title('Smoothed W1 Star')
         plt.ylabel('Enclosed flux')
-        plt.gca().set_yscale('log')
-        plt.subplot(2,2,2)
+        if flux_yscale=='log':
+            plt.gca().set_yscale('log')
+        
+        plt.subplot(2,3,2)
         plt.errorbar(self.apertures_a,self.flux2,self.flux2_err,fmt='b.')
-        #plt.xlabel('semi-major axis (pixels)')
-        plt.ylabel('Enclosed flux')
         plt.title('W3 (12-micron)')
-        plt.gca().set_yscale('log')
-        # plot surface brightness vs radius
-        plt.subplot(2,2,3)
-        #plt.plot(self.apertures_a,self.flux1,'bo')
-        plt.errorbar(self.apertures_a,self.sb1,self.sb1_err,fmt='b.')
-        plt.xlabel('semi-major axis (pixels)')
-        plt.ylabel('Surface Brightess')
-        plt.gca().set_yscale('log')
-        plt.subplot(2,2,4)
-        plt.errorbar(self.apertures_a,self.sb2,self.sb2_err,fmt='b.')
-        plt.xlabel('semi-major axis (pixels)')
+        if star:
+            plt.title('Unsmoothed W3 Star')
+        if flux_yscale=='log':
+            plt.gca().set_yscale('log')
+        
+        plt.subplot(2,3,3)
+        label1='Smoothed W1'
+        label2='W3'
+        if star:
+            label1='Smoothed W1 Star'
+            label2='W3 Star'
+        plt.errorbar(self.apertures_a, self.flux1/np.max(self.flux1), 
+                     self.flux1_err/np.max(self.flux1_err), fmt='r.',label=label1)
+        plt.errorbar(self.apertures_a, self.flux2/np.max(self.flux2), 
+                     self.flux2_err/np.max(self.flux2_err), fmt='b.',label=label2)
+        plt.title('Normalized Curves')
+        if flux_yscale=='log':
+            plt.gca().set_yscale('log')
+        plt.legend()
+        
+        plt.subplot(2,3,4)
+        plt.errorbar(self.apertures_a,self.sb1,self.sb1_err,fmt='r.')
         plt.ylabel('Surface Brightness')
+        plt.xlabel('Semi-Major Axis [px]')
         plt.gca().set_yscale('log')
-        plt.savefig(homedir+'/Desktop/'+galaxyname+'-enclosed-flux.png')
+        
+        plt.subplot(2,3,5)
+        plt.errorbar(self.apertures_a,self.sb2,self.sb2_err,fmt='b.')
+        plt.xlabel('Semi-Major Axis [px]')
+        plt.gca().set_yscale('log')
+        
+        plt.subplot(2,3,6)
+        plt.errorbar(self.apertures_a, self.sb1/np.max(self.sb1), 
+                     self.sb1_err/np.max(self.sb1_err), fmt='r.')
+        plt.errorbar(self.apertures_a, self.sb2/np.max(self.sb2), 
+                     self.sb2_err/np.max(self.sb2_err), fmt='b.')
+        plt.gca().set_yscale('log')
+        plt.xlabel('Semi-Major Axis [px]')
+        
+        if savefig:
+            plt.savefig(homedir+'/Desktop/'+galaxyname+'-enclosed-flux.png')
+        
         plt.show()
     
 if __name__ == '__main__':
-    print('Use: \n e_obj = ellipse(obj_catalog_path, w1_image_path, w3_image_path, w1_psf_path, w3_psf_path, mask_path=None, objra=None, objdec=None) \n e_obj.run_two_image_phot() \n e_obj.check_fitted_psf() \n e_obj.plot_profile()')
+    print('Use: \n e_obj = ellipse(obj_catalog_path, w1_image_path, w3_image_path, w1_psf_path, w3_psf_path, mask_path=None, objra=None, objdec=None) \n e_obj.run_two_image_phot() \n e_obj.check_fitted_psf() \n e_obj.plot_profiles(ax_scale=log,savefig=False) \n e_obj.check_ptsources(box_size=5)')
