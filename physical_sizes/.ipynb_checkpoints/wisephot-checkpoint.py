@@ -94,7 +94,7 @@ class wise_ellipse():
             wcs = WCS(self.w1_head)
             
             # get x and y coord of galaxy from (RA,DEC) using mask wcs
-            #print(f"\nobject RA={self.objra:.4f}, DEC={self.objdec:.4f}\n")
+            #print(f"\nobject RA={self.objra:.4f}, DECx={self.objdec:.4f}\n")
             self.xcenter,self.ycenter = wcs.wcs_world2pix(self.objra,self.objdec,0)
             self.xcenter_ra = self.xcenter
             self.ycenter_dec = self.ycenter            
@@ -578,12 +578,28 @@ class wise_ellipse():
     def plot_profiles(self,galaxyname=None,flux_yscale='log',star=False,savefig=False):
         ''' enclosed flux and surface brightness profiles, save figure '''
         
+        #for some W3 images, especially if galaxies/point sources are relatively faint, the apertures will enclose pixels with negative values, which riddle the background. statistically, the larger amount of background enclosed the more negative pixels, and thus a potentially lower enclosed flux than the previous aperture. this is no bueno, so one option to try is to cut off the flux/SB values when the (flux[i+1]-flux[i])<0, or some variant of this condition. another option is to find where W1 curve plateaus; however, it may likely never plateau since increasingly larger apertures will enclose more pixels, and potentially non-central objects (e.g., foreground stars).
+        
+        cutoff_index=None            #define variable outside of loop
+        diff = np.diff(self.flux2)   #outputs array with the difference values between consecutive elements
+        for n in diff:               #for every element in diff, find the first which is negative
+            if n < 0:
+                index = np.min(np.where(diff==n))  #could be multiple indices where the difference is
+                                                   #the same value as n; pick the first one.
+
+                cutoff_index = index+1             #remove that and subsequent elements
+                break                              #I will use this cutoff index for flux and sb of both galaxies
+
+        #create boolean array to 'trim' the fluxes/sbs/apertures from cutoff_index onwards
+        trim_flag = np.zeros(len(self.flux2),dtype='bool')   #len(flux2)=len(flux1)=len(apertures_a), etc.
+        trim_flag[0:cutoff_index] = True     
+        
         plt.close("all")        
         plt.figure(figsize=(10,4))
         plt.subplots_adjust(wspace=.3)
         
         plt.subplot(2,3,1)
-        plt.errorbar(self.apertures_a,self.flux1,self.flux1_err,fmt='r.')
+        plt.errorbar(self.apertures_a[trim_flag],self.flux1[trim_flag],self.flux1_err[trim_flag],fmt='r.')
         plt.title('Smoothed W1 (3.4-micron)')
         if star:
             plt.title('Smoothed W1 Star')
@@ -592,7 +608,8 @@ class wise_ellipse():
             plt.gca().set_yscale('log')
         
         plt.subplot(2,3,2)
-        plt.errorbar(self.apertures_a,self.flux2,self.flux2_err,fmt='b.')
+        plt.errorbar(self.apertures_a[trim_flag],self.flux2[trim_flag],
+                     self.flux2_err[trim_flag],fmt='b.')
         plt.title('W3 (12-micron)')
         if star:
             plt.title('Unsmoothed W3 Star')
@@ -605,31 +622,32 @@ class wise_ellipse():
         if star:
             label1='Smoothed W1 Star'
             label2='W3 Star'
-        plt.errorbar(self.apertures_a, self.flux1/np.max(self.flux1), 
-                     self.flux1_err/np.max(self.flux1_err), fmt='r.',label=label1)
-        plt.errorbar(self.apertures_a, self.flux2/np.max(self.flux2), 
-                     self.flux2_err/np.max(self.flux2_err), fmt='b.',label=label2)
+        plt.errorbar(self.apertures_a[trim_flag], self.flux1[trim_flag]/np.max(self.flux1[trim_flag]), 
+                     self.flux1_err[trim_flag]/np.max(self.flux1_err[trim_flag]), fmt='r.',label=label1)
+        plt.errorbar(self.apertures_a[trim_flag], self.flux2[trim_flag]/np.max(self.flux2[trim_flag]), 
+                     self.flux2_err[trim_flag]/np.max(self.flux2_err[trim_flag]), fmt='b.',label=label2)
         plt.title('Normalized Curves')
         if flux_yscale=='log':
             plt.gca().set_yscale('log')
         plt.legend()
         
         plt.subplot(2,3,4)
-        plt.errorbar(self.apertures_a,self.sb1,self.sb1_err,fmt='r.')
+        plt.errorbar(self.apertures_a[trim_flag],self.sb1[trim_flag],self.sb1_err[trim_flag],fmt='r.')
         plt.ylabel('Surface Brightness')
         plt.xlabel('Semi-Major Axis [px]')
         plt.gca().set_yscale('log')
         
         plt.subplot(2,3,5)
-        plt.errorbar(self.apertures_a,self.sb2,self.sb2_err,fmt='b.')
+        plt.errorbar(self.apertures_a[trim_flag],self.sb2[trim_flag],
+                     self.sb2_err[trim_flag],fmt='b.')
         plt.xlabel('Semi-Major Axis [px]')
         plt.gca().set_yscale('log')
         
         plt.subplot(2,3,6)
-        plt.errorbar(self.apertures_a, self.sb1/np.max(self.sb1), 
-                     self.sb1_err/np.max(self.sb1_err), fmt='r.')
-        plt.errorbar(self.apertures_a, self.sb2/np.max(self.sb2), 
-                     self.sb2_err/np.max(self.sb2_err), fmt='b.')
+        plt.errorbar(self.apertures_a[trim_flag], self.sb1[trim_flag]/np.max(self.sb1[trim_flag]), 
+                     self.sb1_err[cutoff_index]/np.max(self.sb1_err[cutoff_index]), fmt='r.')
+        plt.errorbar(self.apertures_a[trim_flag], self.sb2[trim_flag]/np.max(self.sb2[trim_flag]), 
+                     self.sb2_err[trim_flag]/np.max(self.sb2_err[trim_flag]), fmt='b.')
         plt.gca().set_yscale('log')
         plt.xlabel('Semi-Major Axis [px]')
         
