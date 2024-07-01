@@ -2,9 +2,9 @@
 
 catalog                Desktop/galfit_files/VF_WISESIZE_v2.fits
 column_name            column_name
-im_path                Desktop/vf_html_w1_v2/all_input_fits/
-im_name                *-custom-image-W3.fits
-std_name               *-custom-std-W3.fits
+im_path                Desktop/input_im/
+im_name                -custom-image-W3.fits
+std_name               -custom-std-W3.fits
 output_name            Desktop/galfit_files/SNR_VF_WISESIZE_v2.fits
 
 
