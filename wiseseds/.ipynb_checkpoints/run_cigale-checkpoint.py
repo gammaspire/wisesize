@@ -47,5 +47,14 @@ if __name__ == "__main__":
     
     if '-sed_plots' in sys.argv:
         sed_plots = True
-        
     
+    print('Configuring input text files...')
+    run_genconf(dir_path, sed_plots)
+    print('Fin!')
+    print('Execuring CIGALE...')
+    run_cigale(dir_path)
+    print('Fin!')
+    if sed_plots:
+        print('Generating SED plots...')
+        run_sed_plots(dir_path)
+        print('Fin!')
