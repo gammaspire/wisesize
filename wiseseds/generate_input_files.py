@@ -1,6 +1,5 @@
 #aim: generate input files compatible with CIGALE for a given sample --> __.txt with sample params, and pcigale.ini
 
-#
 
 from astropy.table import Table
 import numpy as np
@@ -118,21 +117,38 @@ def create_ini_file(north_path, south_path):
     
     check_dir(north_path, south_path)    
     
-    with open(homedir+'/Desktop/cigale_vf_north/pcigale.ini', 'w') as file:
+    #create pcigale.ini files
+    with open(north_path+'/pcigale.ini', 'w') as file:
         file.write('data_file = vf_data_north.txt \n')
         file.write('parameters_file = \n')
         file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dl2014, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
         file.write('cores = 1 \n')
         file.close()    
-
-    with open(homedir+'/Desktop/cigale_vf_south/pcigale.ini', 'w') as file:
+    with open(south_path+'/pcigale.ini', 'w') as file:
         file.write('data_file = vf_data_south.txt \n')
         file.write('parameters_file = \n')
         file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dl2014, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
         file.write('cores = 1 \n')
         file.close()    
+        
+    #create pcigale.ini.spec files
+    
+    with open(north_path+'/pcigale.ini.spec', 'w') as file:
+        file.write('data_file = string() \n')
+        file.write('parameters_file = string() \n')
+        file.write('sed_modules = cigale_string_list() \n')
+        file.write('analysis_method = string() \n')
+        file.write('cores = integer(min=1)')
+        file.close()
+    with open(south_path+'/pcigale.ini.spec', 'w') as file:    
+        file.write('data_file = string() \n')
+        file.write('parameters_file = string() \n')
+        file.write('sed_modules = cigale_string_list() \n')
+        file.write('analysis_method = string() \n')
+        file.write('cores = integer(min=1) \n')
+        file.close()        
         
 def run_all(Vcosmic_array, IDs, flux_table, north_path, south_path, trim=True):
 
