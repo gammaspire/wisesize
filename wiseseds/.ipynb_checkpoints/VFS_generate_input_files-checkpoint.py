@@ -27,16 +27,19 @@ def create_fauxtab(IDs, redshifts, flux_tab):
     #isolate needed flux_tab fluxes; convert from nanomaggies to mJy
     #order: FUV, NUV, g, r, W1, W2, W3, W4
     fluxes = [flux_tab['FLUX_AP06_FUV']*3.631e-3, flux_tab['FLUX_AP06_NUV']*3.631e-3, flux_tab['FLUX_AP06_G']*3.631e-3,
-             flux_tab['FLUX_AP06_R']*3.631e-3, flux_tab['FLUX_AP06_W1']*3.631e-3, flux_tab['FLUX_AP06_W2']*3.631e-3,
+             flux_tab['FLUX_AP06_R']*3.631e-3, flux_tab['FLUX_AP06_Z']*3.631e-3, 
+              flux_tab['FLUX_AP06_W1']*3.631e-3, flux_tab['FLUX_AP06_W2']*3.631e-3,
              flux_tab['FLUX_AP06_W3']*3.631e-3, flux_tab['FLUX_AP06_W4']*3.631e-3]
 
     flux_ivars = [flux_tab['FLUX_IVAR_AP06_FUV'], flux_tab['FLUX_IVAR_AP06_NUV'],
                  flux_tab['FLUX_IVAR_AP06_G'], flux_tab['FLUX_IVAR_AP06_R'],
+                  flux_tab['FLUX_IVAR_AP06_Z'],
                  flux_tab['FLUX_IVAR_AP06_W1'], flux_tab['FLUX_IVAR_AP06_W2'],
                  flux_tab['FLUX_IVAR_AP06_W3'], flux_tab['FLUX_IVAR_AP06_W4']]
     
     flux_errs = [np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),
-             np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),np.zeros(len(flux_tab))]
+             np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),np.zeros(len(flux_tab)),
+                 np.zeros(len(flux_tab))]
 
     #for every list of fluxes...
     for index in range(len(flux_ivars)):
@@ -58,9 +61,9 @@ def create_fauxtab(IDs, redshifts, flux_tab):
                               fluxes[2],flux_errs[2],fluxes[3],
                               flux_errs[3],fluxes[4],flux_errs[4],
                               fluxes[5],flux_errs[5],fluxes[6],
-                              flux_errs[6],fluxes[7],flux_errs[7]],
+                              flux_errs[6],fluxes[7],flux_errs[7],fluxes[8],flux_errs[8]],
                               names=['VFID','redshift','FUV','FUV_err','NUV','NUV_err',
-                                     'g', 'g_err', 'r', 'r_err',
+                                     'g', 'g_err', 'r', 'r_err','z','z_err',
                                      'WISE1','WISE1_err','WISE2','WISE2_err','WISE3','WISE3_err','WISE4','WISE4_err'])
     
     return faux_table
@@ -91,28 +94,26 @@ def create_input_files(IDs, redshifts, flux_tab, north_path, south_path, trim=Tr
     
     with open(homedir+'/Desktop/cigale_vf_north/vf_data_north.txt', 'w') as file:
         #create file header
-        #s = '# id redshift FUV FUV_err NUV NUV_err BASS-g BASS-g_err BASS-r BASS-r_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
-        s = '# id redshift FUV FUV_err NUV NUV_err g_prime g_prime_err r_prime r_prime_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
+        s = '# id redshift FUV FUV_err NUV NUV_err BASS-g BASS-g_err BASS-r BASS-r_err MzLS-z MzLS-z_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
         file.write(s)
 
         #for every "good" galaxy in flux_tab, add a row to the text file with relevant information
         for n in faux_table[north_flag]:
 
-            s_gal = f"{n[0]} {n[1]} %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f"%(n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10],n[11],n[12],n[13],n[14],n[15],n[16],n[17]) + '\n'
+            s_gal = f"{n[0]} {n[1]} %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f"%(n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10],n[11],n[12],n[13],n[14],n[15],n[16],n[17],n[18],n[19]) + '\n'
             file.write(s_gal)
 
         file.close()    
 
     with open(homedir+'/Desktop/cigale_vf_south/vf_data_south.txt', 'w') as file:
         #create file header
-        #s = '# id redshift FUV FUV_err NUV NUV_err decamDR1-g decamDR1-g_err decamDR1-r decamDR1-r_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
-        s = '# id redshift FUV FUV_err NUV NUV_err g_prime g_prime_err r_prime r_prime_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
+        s = '# id redshift FUV FUV_err NUV NUV_err decamDR1-g decamDR1-g_err decamDR1-r decamDR1-r_err decamDR1-z decamDR1-z_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
         file.write(s)
 
         #for every "good" galaxy in flux_tab, add a row to the text file with relevant information
         for n in faux_table[south_flag]:
 
-            s_gal = f"{n[0]} {n[1]} %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f"%(n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10],n[11],n[12],n[13],n[14],n[15],n[16],n[17]) + '\n'
+            s_gal = f"{n[0]} {n[1]} %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f"%(n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10],n[11],n[12],n[13],n[14],n[15],n[16],n[17],n[18],n[19]) + '\n'
             file.write(s_gal)
 
         file.close()    
@@ -125,14 +126,14 @@ def create_ini_file(north_path, south_path):
     with open(north_path+'/pcigale.ini', 'w') as file:
         file.write('data_file = vf_data_north.txt \n')
         file.write('parameters_file = \n')
-        file.write('sed_modules = sfhdelayed, bc03, nebular, dustatt_modified_CF00, dale2014, redshifting \n')
+        file.write('sed_modules = sfhdelayed, bc03, nebular, dustatt_modified_CF00, dl2014, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
         file.write('cores = 1 \n')
         file.close()    
     with open(south_path+'/pcigale.ini', 'w') as file:
         file.write('data_file = vf_data_south.txt \n')
         file.write('parameters_file = \n')
-        file.write('sed_modules = sfhdelayed, bc03, nebular, dustatt_modified_CF00, dale2014, redshifting \n')
+        file.write('sed_modules = sfhdelayed, bc03, nebular, dustatt_modified_CF00, dl2014, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
         file.write('cores = 1 \n')
         file.close()    
