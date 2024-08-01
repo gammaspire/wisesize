@@ -53,6 +53,12 @@ def create_fauxtab(IDs, redshifts, flux_tab):
             #if not zero, calculate error as normal
             else:
                 flux_errs[index][n] = np.sqrt(1/flux_ivars[index][n])*3.631e-3
+            
+            #ANOTHER conditional statement. If the relative error dF/F < 0.05, then let dF = 0.05*F
+            #the idea is that our MINIMUM error floor for fluxes will be set as 5% of the flux value.
+            if (flux_errs[index][n]/fluxes[index][n]) < 0.05:
+                flux_errs[index][n] = 0.05
+                
     
     #create table to organize results
 
