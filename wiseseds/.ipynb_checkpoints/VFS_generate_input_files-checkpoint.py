@@ -25,7 +25,7 @@ def trim_tables(IDs, redshifts, flux_tab):
 def create_fauxtab(IDs, redshifts, flux_tab):
     
     #isolate needed flux_tab fluxes; convert from nanomaggies to mJy
-    #order: FUV, NUV, g, r, W1, W2, W3, W4
+    #order: FUV, NUV, g, r, z, W1, W2, W3, W4
     fluxes = [flux_tab['FLUX_AP06_FUV']*3.631e-3, flux_tab['FLUX_AP06_NUV']*3.631e-3, flux_tab['FLUX_AP06_G']*3.631e-3,
              flux_tab['FLUX_AP06_R']*3.631e-3, flux_tab['FLUX_AP06_Z']*3.631e-3, 
               flux_tab['FLUX_AP06_W1']*3.631e-3, flux_tab['FLUX_AP06_W2']*3.631e-3,
@@ -58,6 +58,16 @@ def create_fauxtab(IDs, redshifts, flux_tab):
             #the idea is that our MINIMUM error floor for fluxes will be set as 5% of the flux value.
             if (flux_errs[index][n]/fluxes[index][n]) < 0.05:
                 flux_errs[index][n] = 0.05
+                
+            #ANOTHER conditional statement. If the relative error dF/F < 0.10, then let dF = 0.10*F
+            #the idea is that our MINIMUM error floor for fluxes will be set as 10% of the flux value
+            #for grz and 15% for W1-4 & NUV+FUV.
+            if index in [0,1,5,6,7,8]:   #FUV, NUV, W1, W2, W3, W4
+                if (flux_errs[index][n]/fluxes[index][n]) < 0.15:
+                    flux_errs[index][n] = 0.15*fluxes[index][n]
+            else:   #legacy grz
+                if (flux_errs[index][n]/fluxes[index][n]) < 0.10:
+                    flux_errs[index][n] = 0.10*fluxes[index][n]
                 
     
     #create table to organize results
@@ -178,6 +188,7 @@ if __name__ == "__main__":
     #load tables
     vf = Table.read(homedir+'/Desktop/v2-20220820/vf_v2_environment.fits')
     flux_tab = Table.read(homedir+'/Desktop/v2-20220820/vf_v2_legacy_ephot.fits')
+    ext_tab = Table.read(homedir+'/Desktop/v2-20220820/vf_v2_extinction.fits')
     
     Vcosmic_array = vf['Vcosmic']
     IDs = vf['VFID']
