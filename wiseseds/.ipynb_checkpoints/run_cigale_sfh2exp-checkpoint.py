@@ -44,11 +44,11 @@ def add_params(dir_path,sed_plots=False):
             else:
                 modified_lines.append(line)
         elif re.match(r'^\s*tau_main\s*=', line):
-            modified_lines.append('tau_main = 1, 300, 500, 800, 1000, 3000, 6000, 1e4, 1e5')
+            modified_lines.append('tau_main = 300, 500, 800, 1000, 3000, 6000, 1e4, 1e5')
         elif re.match(r'^\s*age\s*=', line):
             modified_lines.append('age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000')
         elif re.match(r'^\s*tau_burst\s*=', line):
-            modified_lines.append('tau_burst = 1, 10, 20, 40, 80, 200, 400, 800, 1e3')
+            modified_lines.append('tau_burst = 50, 100, 200, 400, 800, 1e3')
         elif re.match(r'^\s*burst_age\s*=', line):
             modified_lines.append('burst_age = 1, 10, 20, 40, 80, 200, 400, 800, 1e3')
         elif re.match(r'^\s*f_burst\s*=', line):
@@ -100,8 +100,7 @@ if __name__ == "__main__":
     
     print('Configuring input text files...')
     run_genconf(dir_path)
-    #if sed_plots:
-    #    change_sedplot(dir_path)   #changes line to save_best_sed = True 
+
     add_params(dir_path,sed_plots)
     print('Executing CIGALE...')
     run_cigale(dir_path)
