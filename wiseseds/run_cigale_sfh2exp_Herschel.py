@@ -59,27 +59,23 @@ def add_params(dir_path,sed_plots=False):
         elif re.match(r'^\s*metallicity\s*=', line):
             modified_lines.append('metallicity = 0.004, 0.02, 0.05')
         elif re.match(r'^\s*variables\s*=',line):
-            modified_lines.append('variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin')   
+            modified_lines.append('variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin') 
         elif re.match(r'^\s*normalise\s*=',line):
             modified_lines.append('normalise = True')
         elif re.match(r'^\s*Av_ISM\s*=',line):
-            modified_lines.append('Av_ISM = 0.0, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, 0.24, 0.27, 0.3, 0.5, 0.7, 1.0, 1.3, 1.5')
+            modified_lines.append('Av_ISM = 0.01, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.12, 0.15, 1.0, 1.3, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0, 3.3')
         elif re.match(r'^\s*fracAGN\s*=',line):
             modified_lines.append('fracAGN = 0.0, 0.05, 0.1, 0.5')
+        #elif re.match(r'^\s*qpah\s*=',line):
+        #    modified_lines.append('qpah = 0.47, 1.12, 3.19, 3.90')
+        elif re.match(r'^\s*umin\s*=',line):
+            modified_lines.append('umin = 1.0, 5.0, 10.0')
+        elif re.match(r'^\s*alpha\s*=',line):
+            modified_lines.append('alpha = 1.0, 2.0, 2.8')
+        elif re.match(r'^\s*gamma\s*=',line):
+            modified_lines.append('gamma = 0.02, 0.1')  
         else:
             modified_lines.append(line)
-        
-        '''
-        elif re.match(r'^\s* \s*=',line):  
-            
-        elif re.match(r'^\s* \s*=',line):  
-            
-        elif re.match(r'^\s* \s*=',line):  
-            
-        elif re.match(r'^\s* \s*=',line):  
-            
-        elif re.match(r'^\s* \s*=',line):  
-        '''  
     
     #write modified lines back into the file...or, rather, recreate the file with ALL lines, modified or otherwise
     with open(dir_path+'/pcigale.ini', 'w') as file:

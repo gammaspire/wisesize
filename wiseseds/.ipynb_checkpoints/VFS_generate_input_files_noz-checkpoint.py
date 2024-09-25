@@ -62,11 +62,11 @@ def create_fauxtab(IDs, redshifts, flux_tab, ext_tab):
             #the idea is that our MINIMUM error floor for fluxes will be set as 10% of the flux value
             #for grz and 15% for W1-4 & NUV+FUV.
             if index in [0,1,4,5,6,7]:   #FUV, NUV, W1, W2, W3, W4
-                if (flux_errs[index][n]/fluxes[index][n]) < 0.15:
-                    flux_errs[index][n] = 0.15*fluxes[index][n]
+                if (flux_errs[index][n]/fluxes[index][n]) < 0.05:
+                    flux_errs[index][n] = 0.05*fluxes[index][n]
             else:   #legacy gr (not z)
-                if (flux_errs[index][n]/fluxes[index][n]) < 0.10:
-                    flux_errs[index][n] = 0.10*fluxes[index][n]
+                if (flux_errs[index][n]/fluxes[index][n]) < 0.05:
+                    flux_errs[index][n] = 0.05*fluxes[index][n]
             
     
     #create table to organize results
@@ -142,14 +142,14 @@ def create_ini_file(north_path, south_path):
     with open(north_path+'/pcigale.ini', 'w') as file:
         file.write('data_file = vf_data_north.txt \n')
         file.write('parameters_file = \n')
-        file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dale2014, redshifting \n')
+        file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dl2014, skirtor2016, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
         file.write('cores = 1 \n')
         file.close()    
     with open(south_path+'/pcigale.ini', 'w') as file:
         file.write('data_file = vf_data_south.txt \n')
         file.write('parameters_file = \n')
-        file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dale2014, redshifting \n')
+        file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dl2014, skirtor2016, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
         file.write('cores = 1 \n')
         file.close()    
