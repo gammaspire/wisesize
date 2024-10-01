@@ -44,22 +44,21 @@ def add_params(dir_path,sed_plots=False):
             else:
                 modified_lines.append(line)
         elif re.match(r'^\s*tau_main\s*=', line):
-            modified_lines.append('tau_main = 300, 500, 800, 1000, 3000, 6000, 1e4, 1e5')
+            modified_lines.append('tau_main = 300, 500, 1000, 3000, 6000, 1e5')
         elif re.match(r'^\s*age\s*=', line):
             modified_lines.append('age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000')
         elif re.match(r'^\s*tau_burst\s*=', line):
-            modified_lines.append('tau_burst = 50, 100, 200, 400, 800, 1e3')
+            modified_lines.append('tau_burst = 100, 200, 400')
         elif re.match(r'^\s*burst_age\s*=', line):
-            modified_lines.append('burst_age = 1, 10, 20, 40, 80, 200, 400, 800, 1e3')
+            modified_lines.append('burst_age = 20, 80, 200, 400, 800, 1e3')
         elif re.match(r'^\s*f_burst\s*=', line):
             modified_lines.append('f_burst = 0, 0.001, 0.005, 0.01, 0.05, 0.1')
-            #modified_lines.append('f_burst = 0')
         elif re.match(r'^\s*imf\s*=', line):
             modified_lines.append('imf = 1')
         elif re.match(r'^\s*metallicity\s*=', line):
             modified_lines.append('metallicity = 0.004, 0.02, 0.05')
         elif re.match(r'^\s*variables\s*=',line):
-            modified_lines.append('variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin') 
+            modified_lines.append('variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin, dust.mass') 
         elif re.match(r'^\s*normalise\s*=',line):
             modified_lines.append('normalise = True')
         elif re.match(r'^\s*Av_ISM\s*=',line):

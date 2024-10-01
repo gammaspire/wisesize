@@ -1453,7 +1453,7 @@ class MainPage(tk.Frame):
         
         while os.path.exists('{}{:d}.mp4'.format(ani_both_savename, self.namecounter_ani_both)):
             self.namecounter_ani_both += 1
-        self.namecounter_ani_both = '{}{:d}.mp4'.format(ani_both_savename,self.namecounter_ani_both)
+        filename = '{}{:d}.mp4'.format(ani_both_savename,self.namecounter_ani_both)
         
         input_video = ffmpeg.input(ani_savename)
         input_audio = ffmpeg.input(self.wav_savename)
