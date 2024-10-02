@@ -1,5 +1,8 @@
 #this script assumes that generate_input_files.py is successfully run, and that the user has activated their cigale (conda) environment
 
+#example of how to run: 
+#python run_cigale_one.py -dir_path ~/Desktop/cigale_vf_south -sed_plots
+
 import os
 homedir = os.getenv("HOME")
 
@@ -31,6 +34,11 @@ def change_sedplot(dir_path):
         file.writelines(modified_lines)
 
 def add_params(dir_path,sed_plots=False):
+    
+    #different modules, different naming schemes...
+    #sfhdelayed --> age_main, age_burst
+    #sfh2exp --> age, burst_age
+
     with open(dir_path+'/pcigale.ini','r') as file:
         lines = file.readlines()
         
@@ -46,11 +54,15 @@ def add_params(dir_path,sed_plots=False):
         elif re.match(r'^\s*tau_main\s*=', line):
             modified_lines.append('tau_main = 300, 500, 1000, 3000, 6000, 1e5')
         elif re.match(r'^\s*age\s*=', line):
-            modified_lines.append('age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000')
+            modified_lines.append('age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000') 
+        elif re.match(r'^\s*age_main\s*=', line):
+            modified_lines.append('age_main = 1e3, 3e3, 5e3, 7e3, 1e4, 13000') 
         elif re.match(r'^\s*tau_burst\s*=', line):
             modified_lines.append('tau_burst = 100, 200, 400')
-        elif re.match(r'^\s*burst_age\s*=', line):
+        elif re.match(fr'^\s*burst_age\s*=', line):
             modified_lines.append('burst_age = 20, 80, 200, 400, 800, 1e3')
+        elif re.match(fr'^\s*age_burst\s*=', line):
+            modified_lines.append('age_burst = 20, 80, 200, 400, 800, 1e3')    
         elif re.match(r'^\s*f_burst\s*=', line):
             modified_lines.append('f_burst = 0, 0.001, 0.005, 0.01, 0.05, 0.1')
         elif re.match(r'^\s*imf\s*=', line):
@@ -65,14 +77,14 @@ def add_params(dir_path,sed_plots=False):
             modified_lines.append('Av_ISM = 0.01, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.12, 0.15, 1.0, 1.3, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0, 3.3')
         elif re.match(r'^\s*fracAGN\s*=',line):
             modified_lines.append('fracAGN = 0.0, 0.05, 0.1, 0.5')
-        #elif re.match(r'^\s*qpah\s*=',line):
-        #    modified_lines.append('qpah = 0.47, 1.12, 3.19, 3.90')
         elif re.match(r'^\s*umin\s*=',line):
             modified_lines.append('umin = 1.0, 5.0, 10.0')
         elif re.match(r'^\s*alpha\s*=',line):
             modified_lines.append('alpha = 1.0, 2.0, 2.8')
         elif re.match(r'^\s*gamma\s*=',line):
             modified_lines.append('gamma = 0.02, 0.1')  
+        elif re.match(r'^\s*blocks\s*=',line):
+            modified_lines.append('blocks = 4')  
         else:
             modified_lines.append(line)
     
