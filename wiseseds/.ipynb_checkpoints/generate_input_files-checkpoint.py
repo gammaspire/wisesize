@@ -1,37 +1,53 @@
 #aim: generate input files compatible with CIGALE for a given sample --> __.txt with sample params, and pcigale.ini
 
-
 from astropy.table import Table
-import numpy as np
-import os
 
+import os
 homedir = os.getenv("HOME")
+os.environ["MKL_SERVICE_FORCE_INTEL"] = "1"
+
+import numpy as np
+import sys
+
 
 #for low-z objects, v = cz
 def get_redshift(Vcosmic_array):
     
     try:
-        z = Vcosmic_array/3e5
+        z=Vcosmic_array/3e5
     except:
-        z = np.asarray(Vcosmic_array)/3e5
+        z=np.asarray(Vcosmic_array)/3e5
     return z
-        
+
+
+#trim flags according to redshift values (must be positive) and whether the galaxies contain photometry data
 def trim_tables(IDs, redshifts, flux_tab, ext_tab):
     
     all_flags = (redshifts>0.) & (flux_tab['photFlag'])
+    
     return IDs[all_flags], redshifts[all_flags], flux_tab[all_flags], ext_tab[all_flags]
-    
-    
-def create_fauxtab(IDs, redshifts, flux_tab, ext_tab):
+
+
+#return a table which contains galaxy IDs, redshifts, fluxes, and flux errors
+def create_fauxtab(IDs, redshifts, flux_tab, ext_tab, n_or_s):
     
     #isolate needed flux_tab fluxes; convert from nanomaggies to mJy
-    #order: FUV, NUV, g, r, W1, W2, W3, W4
+    #order: FUV, NUV, g, r, (z,) W1, W2, W3, W4
+    if n_or_s == 'n':
     #filter_names = ['FUV','NUV','G','R','Z','W1','W2','W3','W4']
-    filter_names = ['FUV','NUV','G','R','W1','W2','W3','W4']
+        filter_names = ['FUV','NUV','G','R','W1','W2','W3','W4']
+    elif n_or_s == 's':
+        filter_names = ['FUV','NUV','G','R','Z','W1','W2','W3','W4']
+    else:
+        print('Please enter n or s for the n_or_s argument!')
+        sys.exit
+        
+    
     fluxes = []
     flux_ivars = []
     flux_errs = []
     ext_corrections = []
+    
     for i in filter_names:
         fluxes.append(flux_tab[f'FLUX_AP06_{i}']*3.631e-3)
         flux_ivars.append(flux_tab[f'FLUX_IVAR_AP06_{i}'])
@@ -71,18 +87,55 @@ def create_fauxtab(IDs, redshifts, flux_tab, ext_tab):
     
     #create table to organize results
 
-    faux_table = Table([flux_tab['VFID'],np.round(redshifts,4),fluxes[0],
-                              flux_errs[0],fluxes[1],flux_errs[1],
-                              fluxes[2],flux_errs[2],fluxes[3],
-                              flux_errs[3],fluxes[4],flux_errs[4],
-                              fluxes[5],flux_errs[5],fluxes[6],
-                              flux_errs[6],fluxes[7],flux_errs[7]],
-                              names=['VFID','redshift','FUV','FUV_err','NUV','NUV_err',
-                                     'g', 'g_err', 'r', 'r_err',
-                                     'WISE1','WISE1_err','WISE2','WISE2_err','WISE3',
-                                     'WISE3_err','WISE4','WISE4_err'])
+    #I will need these flags as well. humph.
+    north_flag = flux_tab['DEC_MOMENT']>32
+    south_flag = flux_tab['DEC_MOMENT']<32
+    
+    if n_or_s == 'n':
+    
+        faux_table = Table([flux_tab['VFID'][north_flag],np.round(redshifts,4)[north_flag],
+                            fluxes[0][north_flag],flux_errs[0][north_flag],
+                            fluxes[1][north_flag],flux_errs[1][north_flag],  
+                            fluxes[2][north_flag],flux_errs[2][north_flag],
+                            fluxes[3][north_flag],flux_errs[3][north_flag],
+                            fluxes[4][north_flag],flux_errs[4][north_flag],
+                            fluxes[5][north_flag],flux_errs[5][north_flag],
+                            fluxes[6][north_flag],flux_errs[6][north_flag],
+                            fluxes[7][north_flag],flux_errs[7][north_flag]],
+                            names=['VFID','redshift',
+                                    'FUV','FUV_err',
+                                    'NUV','NUV_err',
+                                    'g', 'g_err',
+                                    'r','r_err',
+                                    'WISE1','WISE1_err',
+                                    'WISE2','WISE2_err',
+                                    'WISE3','WISE3_err',
+                                    'WISE4','WISE4_err'])
+    
+    else:
+        faux_table = Table([flux_tab['VFID'][south_flag],np.round(redshifts,4)[south_flag],
+                            fluxes[0][south_flag],flux_errs[0][south_flag],
+                            fluxes[1][south_flag],flux_errs[1][south_flag],
+                            fluxes[2][south_flag],flux_errs[2][south_flag],
+                            fluxes[3][south_flag],flux_errs[3][south_flag],
+                            fluxes[4][south_flag],flux_errs[4][south_flag],
+                            fluxes[5][south_flag],flux_errs[5][south_flag],
+                            fluxes[6][south_flag],flux_errs[6][south_flag],
+                            fluxes[7][south_flag],flux_errs[7][south_flag],
+                            fluxes[8][south_flag],flux_errs[8][south_flag]],
+                              names=['VFID','redshift',
+                                     'FUV','FUV_err',
+                                     'NUV','NUV_err',
+                                     'g', 'g_err', 
+                                     'r', 'r_err',
+                                     'z', 'z_err',
+                                     'WISE1','WISE1_err',
+                                     'WISE2','WISE2_err',
+                                     'WISE3','WISE3_err',
+                                     'WISE4','WISE4_err'])
     
     return faux_table
+
 
 def check_dir(north_path, south_path):
     
@@ -92,20 +145,17 @@ def check_dir(north_path, south_path):
     if not os.path.isdir(south_path):
         os.mkdir(homedir+'/Desktop/cigale_vf_south')
         print('Created '+ homedir + '/Desktop/cigale_vf_south')
+        
 
 def create_input_files(IDs, redshifts, flux_tab, ext_tab, north_path, south_path, trim=True):
     
     if trim:
         IDs, redshifts, flux_tab, ext_tab = trim_tables(IDs,redshifts,flux_tab,ext_tab)
     
-    faux_table = create_fauxtab(IDs, redshifts, flux_tab, ext_tab)
-    
-    #I will need these flags as well. humph.
-    north_flag = flux_tab['DEC_MOMENT']>32
-    south_flag = flux_tab['DEC_MOMENT']<32
+    faux_table_north = create_fauxtab(IDs, redshifts, flux_tab, ext_tab, 'n')
+    faux_table_south = create_fauxtab(IDs, redshifts, flux_tab, ext_tab, 's')
     
     #write files...
-    
     check_dir(north_path, south_path)
     
     with open(homedir+'/Desktop/cigale_vf_north/vf_data_north.txt', 'w') as file:
@@ -114,7 +164,7 @@ def create_input_files(IDs, redshifts, flux_tab, ext_tab, north_path, south_path
         file.write(s)
 
         #for every "good" galaxy in flux_tab, add a row to the text file with relevant information
-        for n in faux_table[north_flag]:
+        for n in faux_table_north:
 
             s_gal = f"{n[0]} {n[1]} %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f"%(n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10],n[11],n[12],n[13],n[14],n[15],n[16],n[17]) + '\n'
             file.write(s_gal)
@@ -123,17 +173,18 @@ def create_input_files(IDs, redshifts, flux_tab, ext_tab, north_path, south_path
 
     with open(homedir+'/Desktop/cigale_vf_south/vf_data_south.txt', 'w') as file:
         #create file header
-        s = '# id redshift FUV FUV_err NUV NUV_err decamDR1-g decamDR1-g_err decamDR1-r decamDR1-r_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
+        s = '# id redshift FUV FUV_err NUV NUV_err decamDR1-g decamDR1-g_err decamDR1-r decamDR1-r_err decamDR1-z decamDR1-z_err WISE1 WISE1_err WISE2 WISE2_err WISE3 WISE3_err WISE4 WISE4_err'+' \n'
         file.write(s)
 
         #for every "good" galaxy in flux_tab, add a row to the text file with relevant information
-        for n in faux_table[south_flag]:
+        for n in faux_table_south:
 
-            s_gal = f"{n[0]} {n[1]} %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f"%(n[2],n[3],n[4],n[5],n[6],n[7],n[8],n[9],n[10],n[11],n[12],n[13],n[14],n[15],n[16],n[17]) + '\n'
+            s_gal = f"{n[0]} {n[1]} %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f"%(n[2], n[3], n[4], n[5], n[6], n[7], n[8], n[9], n[10], n[11], n[12], n[13], n[14], n[15], n[16], n[17], n[18] ,n[19]) + '\n'
             file.write(s_gal)
 
-        file.close()    
+        file.close()   
         
+
 def create_ini_file(north_path, south_path):
     
     check_dir(north_path, south_path)    
@@ -144,14 +195,14 @@ def create_ini_file(north_path, south_path):
         file.write('parameters_file = \n')
         file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dl2014, skirtor2016, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
-        file.write('cores = 1 \n')
+        file.write('cores = 4 \n')
         file.close()    
     with open(south_path+'/pcigale.ini', 'w') as file:
         file.write('data_file = vf_data_south.txt \n')
         file.write('parameters_file = \n')
         file.write('sed_modules = sfh2exp, bc03, nebular, dustatt_modified_CF00, dl2014, skirtor2016, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
-        file.write('cores = 1 \n')
+        file.write('cores = 3 \n')
         file.close()    
         
     #create pcigale.ini.spec files
@@ -176,8 +227,8 @@ def run_all(Vcosmic_array, IDs, flux_tab, ext_tab, north_path, south_path, trim=
     create_ini_file(north_path, south_path)
     redshifts = get_redshift(Vcosmic_array)
     create_input_files(IDs, redshifts, flux_tab, ext_tab, north_path, south_path, trim)
+    
 
-        
 if __name__ == "__main__":
     
     north_path = homedir+'/Desktop/cigale_vf_north'
@@ -194,5 +245,3 @@ if __name__ == "__main__":
     IDs = vf['VFID']
     
     run_all(Vcosmic_array, IDs, flux_tab, ext_tab, north_path, south_path, trim)
-    
-        

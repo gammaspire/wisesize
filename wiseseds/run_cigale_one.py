@@ -84,7 +84,7 @@ def add_params(dir_path,sed_plots=False):
         elif re.match(r'^\s*gamma\s*=',line):
             modified_lines.append('gamma = 0.02, 0.1')  
         elif re.match(r'^\s*blocks\s*=',line):
-            modified_lines.append('blocks = 4')  
+            modified_lines.append('blocks = 6')  
         else:
             modified_lines.append(line)
     

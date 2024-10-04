@@ -2,10 +2,12 @@
 
 
 from astropy.table import Table
-import numpy as np
-import os
 
+import os
+os.environ["MKL_SERVICE_FORCE_INTEL"] = "1"
 homedir = os.getenv("HOME")
+
+import numpy as np
 
 #for low-z objects, v = cz
 def get_redshift(Vcosmic_array):
