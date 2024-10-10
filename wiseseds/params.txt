@@ -1,0 +1,11 @@
+#---------------------------------- File paths ----------------------------------
+
+path_to_repos        /Users/k215c316/Desktop/v2-20220820/   # loc of needed tables
+path_to_
+
+#---------------------------------- Parameters ----------------------------------
+
+bands_north     FUV-NUV-g-r-W1-W2-W3-W4
+bands_south     FUV-NUV-g-r-z-W1-W2-W3-W4
+galaxy_ID_col   VFID                            # name of table column containing the galaxy IDs
+flux_ID_col

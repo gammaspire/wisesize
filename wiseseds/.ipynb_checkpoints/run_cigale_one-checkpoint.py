@@ -47,44 +47,46 @@ def add_params(dir_path,sed_plots=False):
     for line in lines:
         if re.match(r'^\s*save_best_sed\s*=', line):
             if sed_plots:
-                modified_lines.append("save_best_sed = True\n")
+                modified_lines.append("  save_best_sed = True \n")
                 print('line changed: save_best_sed = True')
             else:
                 modified_lines.append(line)
         elif re.match(r'^\s*tau_main\s*=', line):
-            modified_lines.append('tau_main = 300, 500, 1000, 3000, 6000, 1e5')
+            modified_lines.append('   tau_main = 300, 500, 1000, 3000, 6000, 1e5 \n')
         elif re.match(r'^\s*age\s*=', line):
-            modified_lines.append('age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000') 
+            modified_lines.append('   age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n') 
         elif re.match(r'^\s*age_main\s*=', line):
-            modified_lines.append('age_main = 1e3, 3e3, 5e3, 7e3, 1e4, 13000') 
+            modified_lines.append('   age_main = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n') 
         elif re.match(r'^\s*tau_burst\s*=', line):
-            modified_lines.append('tau_burst = 100, 200, 400')
+            modified_lines.append('   tau_burst = 100, 200, 400 \n')
         elif re.match(fr'^\s*burst_age\s*=', line):
-            modified_lines.append('burst_age = 20, 80, 200, 400, 800, 1e3')
+            modified_lines.append('   burst_age = 20, 80, 200, 400, 800, 1e3 \n')
         elif re.match(fr'^\s*age_burst\s*=', line):
-            modified_lines.append('age_burst = 20, 80, 200, 400, 800, 1e3')    
+            modified_lines.append('   age_burst = 20, 80, 200, 400, 800, 1e3 \n')    
         elif re.match(r'^\s*f_burst\s*=', line):
-            modified_lines.append('f_burst = 0, 0.001, 0.005, 0.01, 0.05, 0.1')
+            modified_lines.append('   f_burst = 0, 0.001, 0.005, 0.01, 0.05, 0.1 \n')
         elif re.match(r'^\s*imf\s*=', line):
-            modified_lines.append('imf = 1')
+            modified_lines.append('   imf = 1 \n')
         elif re.match(r'^\s*metallicity\s*=', line):
-            modified_lines.append('metallicity = 0.004, 0.02, 0.05')
+            modified_lines.append('   metallicity = 0.004, 0.02, 0.05 \n')
         elif re.match(r'^\s*variables\s*=',line):
-            modified_lines.append('variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin, dust.mass') 
+            modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin, dust.mass \n') 
         elif re.match(r'^\s*normalise\s*=',line):
-            modified_lines.append('normalise = True')
+            modified_lines.append('   normalise = True')
         elif re.match(r'^\s*Av_ISM\s*=',line):
-            modified_lines.append('Av_ISM = 0.01, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.12, 0.15, 1.0, 1.3, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0, 3.3')
+            modified_lines.append('  Av_ISM = 0.01, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.12, 0.15, 1.0, 1.3, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0, 3.3 \n')
         elif re.match(r'^\s*fracAGN\s*=',line):
-            modified_lines.append('fracAGN = 0.0, 0.05, 0.1, 0.5')
+            modified_lines.append('  fracAGN = 0.0, 0.05, 0.1, 0.5 \n')
         elif re.match(r'^\s*umin\s*=',line):
-            modified_lines.append('umin = 1.0, 5.0, 10.0')
+            modified_lines.append('  umin = 1.0, 5.0, 10.0 \n')
         elif re.match(r'^\s*alpha\s*=',line):
-            modified_lines.append('alpha = 1.0, 2.0, 2.8')
+            modified_lines.append('  alpha = 1.0, 2.0, 2.8 \n')
         elif re.match(r'^\s*gamma\s*=',line):
-            modified_lines.append('gamma = 0.02, 0.1')  
+            modified_lines.append('  gamma = 0.02, 0.1 \n')  
         elif re.match(r'^\s*blocks\s*=',line):
-            modified_lines.append('blocks = 6')  
+            modified_lines.append('  blocks = 6 \n')  
+        elif re.match(r'^\s*lim_flag\s*=',line):
+            modified_lines.append('  lim_flag = noscaling \n')
         else:
             modified_lines.append(line)
     

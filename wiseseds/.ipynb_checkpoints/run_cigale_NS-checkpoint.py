@@ -5,7 +5,7 @@ homedir = os.getenv("HOME")
 
 def run_cigale_all(filler=''):
     
-    os.system('python generate_input_files.py')
+    os.system('python generate_input_files_noscaling.py')
     
     os.system(f'python run_cigale_one.py -dir_path ~/Desktop/cigale_vf_north{filler} -sed_plots')
     os.system(f'python run_cigale_one.py -dir_path ~/Desktop/cigale_vf_south{filler} -sed_plots')
@@ -13,9 +13,7 @@ def run_cigale_all(filler=''):
 def concatenate_ns(destination):
     
     north_results = Table.read(homedir+f'/Desktop/cigale_vf_north{filler}/out/results.fits')
-    
-    #north_results = Table.read(f'{destination}/out/results.fits')
-    #south_results = Table.read(f'{destination}/out/results.fits')
+    south_results = Table.read(homedir+f'/Desktop/cigale_vf_south{filler}/out/results.fits')
     
     combined_tab = vstack([north_results, south_results])    
     combined_tab.write(f'{destination}/results_NS.fits',overwrite=True)
