@@ -1,11 +1,29 @@
 #---------------------------------- File paths ----------------------------------
 
-path_to_repos        /Users/k215c316/Desktop/v2-20220820/   # loc of needed tables
-path_to_
+path_to_repos        /Users/k215c316/Desktop/v2-20220820/   # loc of needed tables (phot, main, etc.)
+vcosmic_table        vf_v2_environment.fits                 # table with Vcosmic
+phot_table           vf_v2_legacy_ephot.fits                # table with photometry
+extinction_table     vf_v2_extinction.fits                  # table with extinction parameters
+
+north_output_dir     /Users/k215c316/Desktop/cigale_north
+south_output_dir     /Users/k215c316/Desktop/cigale_south
 
 #---------------------------------- Parameters ----------------------------------
 
-bands_north     FUV-NUV-g-r-W1-W2-W3-W4
-bands_south     FUV-NUV-g-r-z-W1-W2-W3-W4
+bands_north     FUV-NUV-G-R-W1-W2-W3-W4         # options: FUV, NUV, G, R, Z, W1-4. separate each 
+bands_south     FUV-NUV-G-R-Z-W1-W2-W3-W4       # band with a -
+                                                # all characters must be capitalized -- even grz.
+
 galaxy_ID_col   VFID                            # name of table column containing the galaxy IDs
-flux_ID_col
+flux_ID_col     FLUX_AP06_                      # prefix column name for fluxes (e.g., FLUX_AP06_G)
+                                                # also assumes errors follow the same format
+                                                # (e.g., FLUX_AP06_G_ERR)
+
+
+nblocks         6                               # number of blocks to use
+ncores          4                               # number of cores to use
+lim_flag        noscaling                       # which lim_flag to use (noscaling, none, full, ...)
+sed_plots       True                            # indicates whether user would like SED plots
+sfh_module      sfh2exp                         # which sfh module to use (sfh2exp, sfhdelayed, ...)
+dust_module     dl2014                          # which dust module to use (dl2014 or dale2014)
+

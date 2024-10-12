@@ -33,7 +33,7 @@ def change_sedplot(dir_path):
     with open(dir_path+'/pcigale.ini', 'w') as file:
         file.writelines(modified_lines)
 
-def add_params(dir_path,sed_plots=False):
+def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1):
     
     #different modules, different naming schemes...
     #sfhdelayed --> age_main, age_burst
@@ -57,12 +57,20 @@ def add_params(dir_path,sed_plots=False):
             modified_lines.append('   age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n') 
         elif re.match(r'^\s*age_main\s*=', line):
             modified_lines.append('   age_main = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n') 
+            
+        elif re.match(r'^\s*age_main\s*=', line):
+            modified_lines.append('   age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n')     
+            
         elif re.match(r'^\s*tau_burst\s*=', line):
             modified_lines.append('   tau_burst = 100, 200, 400 \n')
         elif re.match(fr'^\s*burst_age\s*=', line):
             modified_lines.append('   burst_age = 20, 80, 200, 400, 800, 1e3 \n')
+        
         elif re.match(fr'^\s*age_burst\s*=', line):
             modified_lines.append('   age_burst = 20, 80, 200, 400, 800, 1e3 \n')    
+        elif re.match(fr'^\s*burst_age\s*=', line):
+            modified_lines.append('   age_burst = 20, 80, 200, 400, 800, 1e3 \n')   
+        
         elif re.match(r'^\s*f_burst\s*=', line):
             modified_lines.append('   f_burst = 0, 0.001, 0.005, 0.01, 0.05, 0.1 \n')
         elif re.match(r'^\s*imf\s*=', line):
@@ -84,9 +92,9 @@ def add_params(dir_path,sed_plots=False):
         elif re.match(r'^\s*gamma\s*=',line):
             modified_lines.append('  gamma = 0.02, 0.1 \n')  
         elif re.match(r'^\s*blocks\s*=',line):
-            modified_lines.append('  blocks = 6 \n')  
+            modified_lines.append(f'  blocks = {nblocks} \n')  
         elif re.match(r'^\s*lim_flag\s*=',line):
-            modified_lines.append('  lim_flag = noscaling \n')
+            modified_lines.append(f'  lim_flag = {lim_flag} \n')
         else:
             modified_lines.append(line)
     
@@ -110,7 +118,7 @@ def run_sed_plots(dir_path):
 if __name__ == "__main__":
 
     if '-h' in sys.argv or '--help' in sys.argv:
-        print("USAGE: %s [-dir_path (path to directory harboring relevant .txt and .ini files, no quotation marks)] %s [-sed_plots (indicates whether user would like the .pdf plots of each sed-fitted galaxy)]")
+        print("USAGE: %s [-dir_path (path to directory harboring relevant .txt and .ini files, no quotation marks)] %s [-sed_plots (indicates whether user would like the .pdf plots of each sed-fitted galaxy)] [-params (name of parameter.txt file, no single or double quotations marks)]")
     
     if '-dir_path' in sys.argv:
         p = sys.argv.index('-dir_path')
@@ -121,23 +129,48 @@ if __name__ == "__main__":
         sed_plots = True
     else:
         sed_plots = False
+
+    if '-params' in sys.argv:
+        p = sys.argv.index('-params')
+        param_file = str(sys.argv[p+1])
+
+    #create dictionary with keyword and values from param textfile
+    param_dict={}
+    with open(param_file) as f:
+        for line in f:
+            try:
+                key = line.split()[0]
+                val = line.split()[1]
+                param_dict[key] = val
+            except:
+                continue
+        
+        #extract parameters and assign to variables...
+        nblocks = param_dict['nblocks']
+        lim_flag = param_dict['lim_flag']
+        
+        north_dir = param_dict['north_output_dir']
+        south_dir = param_dict['south_output_dir']
     
     print('Configuring input text files...')
     run_genconf(dir_path)
 
-    add_params(dir_path,sed_plots)
+    add_params(dir_path,sed_plots,lim_flag,nblocks)
     print('Executing CIGALE...')
     run_cigale(dir_path)
     print('CIGALE is Fin!')
     if sed_plots:
+        
         print('Generating SED plots...')
         run_sed_plots(dir_path)
+        
         print('Organizing output...')
         os.chdir(dir_path+'/out/')
         os.mkdir('SFH_outputs')
         os.mkdir('best_SED_models')
         os.system('mv *best_model* best_sed_models')
         os.system('mv *_SFH* SFH_outputs')
+        
         print('SED Models are Fin!')
         
         
