@@ -769,10 +769,13 @@ class MainPage(tk.Frame):
         
         intvar = int(self.var_w1w3.get())
         
-        #for my next trick...I shall attempt to combine w1 and w3 MIDI notes into one file, if the user deems such as desirable. I will likely be the only user to ever utilize this feature.
+        #for my next trick...I shall attempt to combine w1 and w3 MIDI notes into one file.
         if intvar>0:
-            self.band_alt = 'W3' if self.band=='W1' else 'W1'
+            self.band_alt = 'W3' if (self.band=='W1') | ('W1' in self.path_to_im.get()) else 'W1'
+            self.band = 'W1' if (self.band_alt=='W3') else 'W3'
+
             self.dat_alt = fits.getdata(str(self.path_to_im.get()).replace(self.band,self.band_alt))
+            
             list_to_mean_alt = []
             self.mean_list_alt = []
         
@@ -946,10 +949,15 @@ class MainPage(tk.Frame):
         else:
             self.x1 = event.xdata
             self.y1 = event.ydata
-            first_time=True
         
         #the user has clicked only the 'first' rectangle corner...
         if (self.x1 is not None) & (self.x2 is None):
+            
+            #reset the angle!
+            self.angle = 0
+            self.angle_box.delete(0,tk.END)
+            self.angle_box.insert(0,str(self.angle))
+            
             #if the corner is within the canvas, plot a dot to mark this 'first' corner
             if event.inaxes:
                 self.bound_check=True
@@ -1102,7 +1110,9 @@ class MainPage(tk.Frame):
             
             if int(self.var_w1w3.get())>0:
                 
-                self.band_alt = 'W3' if self.band=='W1' else 'W1'
+                self.band_alt = 'W3' if (self.band=='W1') | ('W1' in self.path_to_im.get()) else 'W1'
+                self.band = 'W1' if (self.band_alt=='W3') else 'W3'
+                
                 self.dat_alt = fits.getdata(str(self.path_to_im.get()).replace(self.band,self.band_alt))
                 
                 cropped_data_alt = self.dat_alt[self.ymin:self.ymax, self.xmin:self.xmax]
@@ -1152,7 +1162,8 @@ class MainPage(tk.Frame):
         if int(self.var_w1w3.get())>0:
 
             #t_data is the same
-            y_data_alt = self.map_value(mean_strip_values_alt, min(mean_strip_values_alt), max(mean_strip_values_alt) ,0, 1)
+            y_data_alt = self.map_value(mean_strip_values_alt, min(mean_strip_values_alt), 
+                                        max(mean_strip_values_alt) ,0, 1)
 
             y_data_scaled_alt = y_data_alt**self.y_scale
 
@@ -1177,10 +1188,12 @@ class MainPage(tk.Frame):
     def midi_compare_w1w3(self):
         relative_diff = (np.asarray(self.midi_data)-np.asarray(self.midi_data_alt))/(np.asarray(self.midi_data))
         #a lot is happening here...
-        #converting to list an array of bools (with the criterion of abs(relative difference)>5%) that
+        #converting to list an array of bools (with some criterion specified below) that
         #is then itself converted to an array of integers (0, 1) and multiplied by 127, which is the
-        #maximum volume.
-        bool_vals = (np.abs(relative_diff)<0.05)
+        #maximum volume. That is, some values will be silent, others will be full volume.
+        bool_vals = (np.abs(relative_diff)>0.10)
+        print(np.abs(relative_diff))
+        print(bool_vals)
         self.relative_vel = np.ndarray.tolist(bool_vals.astype(int)*127)
                 
         #little to no relative difference? NO VOLUME! if there is a difference, then 
@@ -1453,7 +1466,7 @@ class MainPage(tk.Frame):
         
         while os.path.exists('{}{:d}.mp4'.format(ani_both_savename, self.namecounter_ani_both)):
             self.namecounter_ani_both += 1
-        filename = '{}{:d}.mp4'.format(ani_both_savename,self.namecounter_ani_both)
+        ani_both_savename = '{}{:d}.mp4'.format(ani_both_savename, self.namecounter_ani_both)
         
         input_video = ffmpeg.input(ani_savename)
         input_audio = ffmpeg.input(self.wav_savename)

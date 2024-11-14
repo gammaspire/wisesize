@@ -1,5 +1,8 @@
 #this script assumes that generate_input_files.py is successfully run, and that the user has activated their cigale (conda) environment
 
+#example of how to run: 
+#python run_cigale_one.py -dir_path ~/Desktop/cigale_vf_south -sed_plots
+
 import os
 homedir = os.getenv("HOME")
 
@@ -30,7 +33,7 @@ def change_sedplot(dir_path):
     with open(dir_path+'/pcigale.ini', 'w') as file:
         file.writelines(modified_lines)
 
-def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1, create_pdfs=False):
+def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1):
     
     #different modules, different naming schemes...
     #sfhdelayed --> age_main, age_burst
@@ -54,17 +57,20 @@ def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1, create_p
             modified_lines.append('   age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n') 
         elif re.match(r'^\s*age_main\s*=', line):
             modified_lines.append('   age_main = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n') 
-           
+            
         elif re.match(r'^\s*age_main\s*=', line):
             modified_lines.append('   age = 1e3, 3e3, 5e3, 7e3, 1e4, 13000 \n')     
-           
+            
         elif re.match(r'^\s*tau_burst\s*=', line):
             modified_lines.append('   tau_burst = 100, 200, 400 \n')
         elif re.match(fr'^\s*burst_age\s*=', line):
             modified_lines.append('   burst_age = 20, 80, 200, 400, 800, 1e3 \n')
+        
         elif re.match(fr'^\s*age_burst\s*=', line):
             modified_lines.append('   age_burst = 20, 80, 200, 400, 800, 1e3 \n')    
-
+        elif re.match(fr'^\s*burst_age\s*=', line):
+            modified_lines.append('   age_burst = 20, 80, 200, 400, 800, 1e3 \n')   
+        
         elif re.match(r'^\s*f_burst\s*=', line):
             modified_lines.append('   f_burst = 0, 0.001, 0.005, 0.01, 0.05, 0.1 \n')
         elif re.match(r'^\s*imf\s*=', line):
@@ -72,12 +78,11 @@ def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1, create_p
         elif re.match(r'^\s*metallicity\s*=', line):
             modified_lines.append('   metallicity = 0.004, 0.02, 0.05 \n')
         elif re.match(r'^\s*variables\s*=',line):
-            #modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin, dust.mass \n') 
-            modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.mass \n') 
+            modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin, dust.mass \n') 
         elif re.match(r'^\s*normalise\s*=',line):
             modified_lines.append('   normalise = True')
         elif re.match(r'^\s*Av_ISM\s*=',line):
-            modified_lines.append('  Av_ISM = 0.0, 0.01, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.12, 0.15, 1.0, 1.3, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0, 3.3 \n')
+            modified_lines.append('  Av_ISM = 0.01, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.12, 0.15, 1.0, 1.3, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0, 3.3 \n')
         elif re.match(r'^\s*fracAGN\s*=',line):
             modified_lines.append('  fracAGN = 0.0, 0.05, 0.1, 0.5 \n')
         elif re.match(r'^\s*umin\s*=',line):
@@ -90,12 +95,6 @@ def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1, create_p
             modified_lines.append(f'  blocks = {nblocks} \n')  
         elif re.match(r'^\s*lim_flag\s*=',line):
             modified_lines.append(f'  lim_flag = {lim_flag} \n')
-        elif re.match(r'^\s*save_chi2\s*=',line):
-            if create_pdfs:
-                modified_lines.append("  save_chi2 = properties \n")
-                print('line changed: save_chi2 = properties')
-            else:
-                modified_lines.append(line)            
         else:
             modified_lines.append(line)
     
@@ -150,14 +149,13 @@ if __name__ == "__main__":
         nblocks = param_dict['nblocks']
         lim_flag = param_dict['lim_flag']
         
-        #in order to save the probability distribution functions, ncores = nblocks = 1
-        if bool(param_dict['create_pdfs']):
-            nblocks = 1
+        north_dir = param_dict['north_output_dir']
+        south_dir = param_dict['south_output_dir']
     
     print('Configuring input text files...')
     run_genconf(dir_path)
 
-    add_params(dir_path,sed_plots,lim_flag,nblocks,create_pdfs=bool(param_dict['create_pdfs']))
+    add_params(dir_path,sed_plots,lim_flag,nblocks)
     print('Executing CIGALE...')
     run_cigale(dir_path)
     print('CIGALE is Fin!')
@@ -167,19 +165,11 @@ if __name__ == "__main__":
         run_sed_plots(dir_path)
         
         print('Organizing output...')
-        print('Removing SFH .fits files')
         os.chdir(dir_path+'/out/')
+        os.mkdir('SFH_outputs')
         os.mkdir('best_SED_models')
-        if sed_plots:
-            os.system('rm *best_model*.fits')
         os.system('mv *best_model* best_sed_models')
-        os.system('rm *_SFH*')
-        
-        try:
-            os.mkdir('PDF_fits')
-            os.system('mv VFID*fits PDF_fits')
-        except:
-            pass
+        os.system('mv *_SFH* SFH_outputs')
         
         print('SED Models are Fin!')
         
