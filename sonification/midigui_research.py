@@ -201,14 +201,32 @@ class MainPage(tk.Frame):
         self.line_check.grid(row=9,column=2,padx=1,pady=(3,1),sticky='e')
     
     def galaxy_to_display(self):
-        self.path_to_im = tk.Entry(self.frame_buttons, width=35, borderwidth=2, bg='black', fg='lime green', 
+        self.path_to_im = tk.Entry(self.frame_buttons, width=17, borderwidth=2, bg='black', fg='lime green', 
                                    font='Arial 20')
-        self.path_to_im.insert(0,'Type path/to/image.fits or click "Browse"')
-        self.path_to_im.grid(row=0,column=0,columnspan=2)
+        self.path_to_im.insert(0,'image/path.fits')
+        self.path_to_im.grid(row=0,column=0,columnspan=1)
+        
+        self.path_to_mask = tk.Entry(self.frame_buttons,width=17, borderwidth=2, bg='black',
+                                     fg='lime green', font='Arial 20')
+        self.path_to_mask.insert(0,'optional/mask.fits')
+        self.path_to_mask.grid(row=0,column=1,columnspan=1)
+        
         self.add_browse_button()
+        self.add_browse_mask_button()
         self.add_enter_button()
     
-    def populate_editcanvas_widget(self,min_v=0, max_v=1, min_px=0, max_px=1):
+    def populate_editcanvas_widget(self):
+        
+        #initiate v1, v2 sliders
+        self.initiate_v1v2()
+
+        #set up cmap dropdown menu
+        self.set_cmap_menu()
+        
+        #add showmask checkbox
+        self.add_showmask_check()
+    
+    def initiate_v1v2(self,min_v=0, max_v=1, min_px=0, max_px=1):
         
         self.v1slider = tk.Scale(self.frame_editcanvas, from_=min_px, to=max_px, orient=tk.HORIZONTAL,
                                 command=self.change_vvalues)
@@ -220,6 +238,15 @@ class MainPage(tk.Frame):
         
         self.v1slider.grid(row=0,column=1)
         self.v2slider.grid(row=1,column=1)
+        
+    def add_showmask_check(self):
+        self.showmask = tk.IntVar()
+        self.showmask_box = tk.Checkbutton(self.frame_editcanvas, text='Show/Hide Mask', 
+                                           font='Arial 15', onvalue=1, offvalue=0, variable=self.showmask,
+                                          command=self.add_mask)
+        self.showmask_box.grid(row=4, column=0, columnspan=2)
+        
+    def set_cmap_menu(self):
         
         self.cmap_options = ['viridis', 'rainbow', 'plasma', 'spring', 
                              'Wistia', 'cool', 'gist_heat', 'winter', 
@@ -240,7 +267,6 @@ class MainPage(tk.Frame):
         self.reverse_cmap = tk.Checkbutton(self.frame_editcanvas,text='Invert Colorbar', onvalue=1, offvalue=0, 
                                            variable = self.cmaprev, font='Arial 15', command=self.reverse_cmap)
         self.reverse_cmap.grid(row=3,column=0,columnspan=2)
-        
     
     def change_vvalues(self, value):
         min_val = float(self.v1slider.get())
@@ -248,6 +274,13 @@ class MainPage(tk.Frame):
         self.im.norm.autoscale([min_val, max_val])  #change vmin, vmax of self.im
         #self.im.set_clim(vmin=min_val, vmax=max_val)   #another way of doing exactly what I typed above.
         self.canvas.draw()   
+    
+    def add_mask(self):
+        if self.showmask.get()>0.:
+            self.im.set_data(self.dat)
+        else:
+            self.im.set_data(self.dat_for_display)
+        self.canvas.draw()
     
     #command to change color scheme of the image
     def change_cmap(self, value): 
@@ -323,7 +356,7 @@ class MainPage(tk.Frame):
         duration_lab = tk.Label(self.frame_soni,text='Duration (sec)').grid(row=8,column=0)
         self.duration_entry = tk.Entry(self.frame_soni, width=10, borderwidth=2, bg='black', fg='lime green', 
                                        font='Arial 15')
-        self.duration_entry.insert(0,'0.4')
+        self.duration_entry.insert(0,'0.1')
         self.duration_entry.grid(row=8,column=1,columnspan=1)
     
     def init_display_size(self):
@@ -334,7 +367,7 @@ class MainPage(tk.Frame):
 
         self.ax = self.fig.add_subplot()
         self.im = self.ax.imshow(np.zeros(100).reshape(10,10))
-        self.ax.set_title('Click "Browse" to the right to begin!',fontsize=15)
+        self.ax.set_title('Click "Browse Image" to the right to begin!',fontsize=15)
         self.text = self.ax.text(x=2.2,y=4.8,s='Your Galaxy \n Goes Here',color='red',fontsize=25)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.frame_display) 
         
@@ -364,14 +397,19 @@ class MainPage(tk.Frame):
                                             font='Ariel 20', onvalue=1, offvalue=0, variable=self.var_w1w3)
         self.w1w3merge_box.grid(row=1,column=0,sticky='nsew',columnspan=2)
     
-    
     def add_browse_button(self):
-        self.button_explore = tk.Button(self.frame_buttons ,text="Browse", padx=20, pady=10, font=self.helv20, command=self.browseFiles)
+        self.button_explore = tk.Button(self.frame_buttons, text="Browse Image", padx=10, pady=5, 
+                                        font=self.helv20, command=self.browseFiles)
         self.button_explore.grid(row=1,column=0)
         
+    def add_browse_mask_button(self):
+        self.button_mask_explore = tk.Button(self.frame_buttons, text="Browse Mask", padx=10, pady=5,
+                                             font=self.helv20, command=self.browseFilesMask)
+        self.button_mask_explore.grid(row=1,column=1)
+        
     def add_enter_button(self):
-        self.path_button = tk.Button(self.frame_buttons, text='Enter/Refresh Canvas', padx=20, pady=10, font=self.helv20,command=self.initiate_canvas)
-        self.path_button.grid(row=1,column=1)
+        self.path_button = tk.Button(self.frame_buttons, text='Load/Refresh Canvas', padx=15, pady=10, font=self.helv20,bg='gray',command=self.initiate_canvas)
+        self.path_button.grid(row=2,column=0,columnspan=2)
     
     def add_midi_button(self):
         self.midi_button = tk.Button(self.frame_soni, text='Sonify', padx=20, pady=10, font=self.helv20, 
@@ -457,7 +495,7 @@ class MainPage(tk.Frame):
     
     def initiate_canvas(self):
         
-        #I need to add a try...except statement here, in case a user accidentally clicks "Enter/Refresh" without loading a galaxy first. If they do so, then try to successfully load a galaxy, the GUI will break.
+        #I need to add a try...except statement here, in case a user accidentally clicks "Load/Refresh" without loading a galaxy first. If they do so, then try to successfully load a galaxy, the GUI will break.
         
         try:
             #delete any and all miscellany (galaxy image, squares, lines) from the canvas (created using 
@@ -467,7 +505,7 @@ class MainPage(tk.Frame):
         except:
             pass
         
-        self.dat, self.dat_header = fits.getdata(str(self.path_to_im.get()), header=True)
+        self.dat_for_display, self.dat_header = fits.getdata(str(self.path_to_im.get()), header=True)
         
         #many cutouts, especially those in the r-band, have pesky foreground stars and other artifacts, which will invariably dominate the display of the image stretch. one option is that I can grab the corresponding mask image for the galaxy and create a 'mask bool' of 0s and 1s, then multiply this by the image in order to dictate v1, v2, and the normalization *strictly* on the central galaxy pixel values. 
         
@@ -483,21 +521,28 @@ class MainPage(tk.Frame):
             galaxyband = ' '
         
         try:
-            if (galaxyband=='g') | (galaxyband=='r') | (galaxyband=='z'):
-                mask_path = glob.glob(self.initial_browsedir+galaxyname+'*'+'r-mask.fits')[0]
-            if (galaxyband=='W3') | (galaxyband=='W1'):
-                mask_path = glob.glob(self.initial_browsedir+galaxyname+'*'+'wise-mask.fits')[0]
-                
-            mask_image = fits.getdata(mask_path)
+            mask_image = fits.getdata(self.path_to_mask.get())
             self.mask_bool = ~(mask_image>0)
-        
         except:
-            self.mask_bool = np.zeros((len(self.dat),len(self.dat)))+1  #create a full array of 1s, won't affect image
-            print('Mask image not found; proceeded with default v1, v2, and normalization values.')
+            self.mask_bool = np.zeros((len(self.dat_for_display),len(self.dat_for_display)))+1  #create a full array of 1s, won't affect image
+            print('Mask image not found or not same dimensions as image; proceeding with default v1, v2, and normalization values.') 
+            
+        #except:
+        #    if (galaxyband=='g') | (galaxyband=='r') | (galaxyband=='z'):
+        #        mask_path = glob.glob(self.initial_browsedir+galaxyname+'*'+'r-mask.fits')[0]
+        #    if (galaxyband=='W3') | (galaxyband=='W1'):
+        #        mask_path = glob.glob(self.initial_browsedir+galaxyname+'*'+'wise-mask.fits')[0]
+                
+        #    mask_image = fits.getdata(mask_path)
+        #    self.mask_bool = ~(mask_image>0)
+
+        #apply mask to image...not that this will NOT affect the default display (which excludes the bool mask)
+        self.dat = self.dat_for_display*self.mask_bool
         
-        v1 = scoreatpercentile(self.dat*self.mask_bool,0.5)
-        v2 = scoreatpercentile(self.dat*self.mask_bool,99.9)
-        norm_im = simple_norm(self.dat*self.mask_bool,'asinh', min_percent=0.5, max_percent=99.9,
+        #use masked image to find default display stretch parameters
+        v1 = scoreatpercentile(self.dat,0.5)
+        v2 = scoreatpercentile(self.dat,99.9)
+        norm_im = simple_norm(self.dat,'asinh', min_percent=0.5, max_percent=99.9,
                               min_cut=v1, max_cut=v2)  #'beautify' the image
         
         self.v1slider.configure(from_=np.min(self.dat), to=np.max(self.dat))
@@ -508,7 +553,13 @@ class MainPage(tk.Frame):
         self.v2slider.set(v2)
 
         self.ax = self.fig.add_subplot()
-        self.im = self.ax.imshow(self.dat,origin='lower',norm=norm_im)
+        
+        #if checkbox is already activated, display will default to including the mask
+        if self.showmask.get()>0.:
+            self.im = self.ax.imshow(self.dat,origin='lower',norm=norm_im)
+        else:
+            self.im = self.ax.imshow(self.dat_for_display,origin='lower',norm=norm_im)
+        
         self.ax.set_xlim(0,len(self.dat)-1)
         self.ax.set_ylim(0,len(self.dat)-1)
         
@@ -643,7 +694,7 @@ class MainPage(tk.Frame):
                     y_coord = line_y[index]
                     px_value = self.dat[int(y_coord)][int(self.x)]   #x will be the same...again, by design.
                     value_list[index] = px_value
-                mean_px = '{:.2f}'.format(np.mean(value_list))
+                mean_px = '{:.2f}'.format(np.mean(value_list[value_list!=0.]))
                 self.val.config(text=f'Mean Pixel Value: {mean_px}',font='Ariel 18')
                 self.canvas.draw()      
             
@@ -773,8 +824,6 @@ class MainPage(tk.Frame):
         if intvar>0:
             self.band_alt = 'W3' if (self.band=='W1') | ('W1' in self.path_to_im.get()) else 'W1'
             self.band = 'W1' if (self.band_alt=='W3') else 'W3'
-
-            self.dat_alt = fits.getdata(str(self.path_to_im.get()).replace(self.band,self.band_alt))
             
             list_to_mean_alt = []
             self.mean_list_alt = []
@@ -803,7 +852,7 @@ class MainPage(tk.Frame):
                     #the column ypoints[n]
                     list_to_mean.append(self.dat[int(ypoints[n])][int(xpoints[n])])
                     
-                    if intvar>0:
+                    if intvar>0.:
                         list_to_mean_alt.append(self.dat_alt[int(ypoints[n])][int(xpoints[n])])
                          
                 self.mean_list.append(np.mean(list_to_mean))
@@ -1000,9 +1049,11 @@ class MainPage(tk.Frame):
         self.path_to_im.delete(0,tk.END)
         self.path_to_im.insert(0,filename)    
         
-    def browseFiles_alt(self):
-        self.filename_alt = filedialog.askopenfilename(initialdir = self.initial_browsedir, title = "Select a File", filetypes = ([("FITS Files", ".fits")]))
-        return
+    def browseFilesMask(self):
+        filename_alt = filedialog.askopenfilename(initialdir = self.initial_browsedir, title = "Select a File", filetypes = ([("FITS Files", ".fits")]))
+        self.path_to_mask.delete(0,tk.END)
+        self.path_to_mask.insert(0,filename_alt)
+    
     
     def reproject_alt_im(self):
         return
@@ -1054,7 +1105,6 @@ class MainPage(tk.Frame):
         self.note_names = self.note_names.split("-")   #converts self.note_names into a proper list of note strings
         
         print(selected_sig)
-        #print(self.note_names)
                 
         #use user-drawn rectangle in order to define xmin, xmax; ymin, ymax. if no rectangle drawn, then default to image width for x and some fraction of the height for y.
         try:
@@ -1089,6 +1139,12 @@ class MainPage(tk.Frame):
         mean_px_max = '{:.2f}'.format(self.xmax)
         self.xminmax_entry.insert(0,f'{mean_px_min}, {mean_px_max}')
         
+        #next...if we are comparing W1 and W3, we must load the "alt" data!
+        if int(self.var_w1w3.get())>0:
+            self.dat_alt = fits.getdata(str(self.path_to_im.get()).replace(self.band,self.band_alt))
+            #use mask to remove errant objects -- ASSUMES W1 and W3 are the same image size!
+            self.dat_alt = self.dat_alt*self.mask_bool
+        
         if self.angle == 0:
             cropped_data = self.dat[self.ymin:self.ymax, self.xmin:self.xmax]   #[rows,columns]; isolates pixels within the user-defined region
             mean_strip_values = []   #create empty array for mean px values of the strips
@@ -1106,21 +1162,21 @@ class MainPage(tk.Frame):
             
             #creating mean strip values from the vertical line pixel values
             for line in vertical_lines:
-                mean_strip_values.append(np.mean(line))
+                line = np.asarray(line)
+                mean_strip_values.append(np.mean(line[line!=0.]))   #ignore zeros --> masked pixels
             
             if int(self.var_w1w3.get())>0:
                 
                 self.band_alt = 'W3' if (self.band=='W1') | ('W1' in self.path_to_im.get()) else 'W1'
                 self.band = 'W1' if (self.band_alt=='W3') else 'W3'
                 
-                self.dat_alt = fits.getdata(str(self.path_to_im.get()).replace(self.band,self.band_alt))
-                
                 cropped_data_alt = self.dat_alt[self.ymin:self.ymax, self.xmin:self.xmax]
                 mean_strip_values_alt = []   #create empty array for mean px values of the strips
                 vertical_lines = [cropped_data_alt[:, i] for i in range(self.xmax-self.xmin)]
                 
                 for line in vertical_lines:
-                    mean_strip_values_alt.append(np.mean(line))
+                    line = np.asarray(line)
+                    mean_strip_values_alt.append(np.mean(line[line!=0.]))   #ignores zeros --> masked pixels
                 
             #need to define for when playing single note on the GUI
             self.mean_list_norot = mean_strip_values        
@@ -1138,6 +1194,8 @@ class MainPage(tk.Frame):
         y_data = self.map_value(mean_strip_values,min(mean_strip_values),max(mean_strip_values),0,1)   #normalizes values
         y_data_scaled = y_data**self.y_scale
         
+        print('y_data_scaled',y_data_scaled)
+        
         #the following converts note names into midi notes
         note_midis = [str2midi(n) for n in self.note_names]  #list of midi note numbers
         n_notes = len(note_midis)
@@ -1152,7 +1210,9 @@ class MainPage(tk.Frame):
             if int(self.var_rev.get())==1:
                 note_index = round(self.map_value(y_data_scaled[i],0,1,n_notes-1,0))
             self.midi_data.append(note_midis[note_index])
-
+        
+        print('midi_data',self.midi_data)
+        
         #map data to note velocities (equivalent to the sound volume)
         self.vel_data = []
         for i in range(len(y_data_scaled)):
@@ -1182,7 +1242,10 @@ class MainPage(tk.Frame):
                     note_index = round(self.map_value(y_data_scaled_alt[i],0,1,n_notes-1,0))
 
                 self.midi_data_alt.append(note_midis[note_index])
-                
+        
+            print('y_data_scaled_alt',y_data_scaled_alt)
+            print('midi_data_alt',self.midi_data_alt)
+        
         self.midi_allnotes() 
     
     def midi_compare_w1w3(self):
@@ -1192,8 +1255,6 @@ class MainPage(tk.Frame):
         #is then itself converted to an array of integers (0, 1) and multiplied by 127, which is the
         #maximum volume. That is, some values will be silent, others will be full volume.
         bool_vals = (np.abs(relative_diff)>0.10)
-        print(np.abs(relative_diff))
-        print(bool_vals)
         self.relative_vel = np.ndarray.tolist(bool_vals.astype(int)*127)
                 
         #little to no relative difference? NO VOLUME! if there is a difference, then 
@@ -1277,7 +1338,7 @@ class MainPage(tk.Frame):
         single_pitch = self.midi_data[self.closest_mean_index]
         single_volume = self.vel_data[self.closest_mean_index]
         
-        midi_file.addNote(track=0, channel=0, pitch=single_pitch, time=self.t_data[1], duration=1, volume=single_volume)   #isolate the one note corresponding to the click event, add to midi file; the +1 is to account for the silly python notation conventions
+        midi_file.addNote(track=0, channel=0, pitch=single_pitch, time=self.t_data[1], duration=0.5, volume=single_volume)   #isolate the one note corresponding to the click event, add to midi file; the +1 is to account for the silly python notation conventions
         
         midi_file.writeFile(self.memfile)
         #with open(homedir+'/Desktop/test.mid',"wb") as f:
@@ -1333,34 +1394,37 @@ class MainPage(tk.Frame):
         return line,
     
     #FOR W1+W3 OVERLAY.    
-    def update_line_all(self, num, line1, line2, line3):
+    def update_line_all(self, num, point1a, point1b, line2, line3):
 
-        xvals = np.arange(0, self.xmax_anim+1, 0.05)
-        i = xvals[num]
-        line1.set_data([i, i], [self.ymin_anim-5, self.ymax_anim+5])
-
-        xvals_alt = self.map_value(xvals,0,np.max(xvals),0,len(self.all_line_coords)-1)
-        i_alt = int(xvals_alt[num])
-
-        line_xdat, line_ydat = map(list, zip(*self.all_line_coords[i_alt]))
-        line2.set_data([line_xdat[0], line_xdat[-1]], [line_ydat[0], line_ydat[-1]])
-        line3.set_data([line_xdat[0], line_xdat[-1]], [line_ydat[0], line_ydat[-1]])
-
-        return line1, line2, line3,
-    
-    #ONLY ONE WAVELENGTH BAND? BENE - ONLY TWO LINES TO UPDATE.
-    def update_line_one(self,num,line1,line2):
+        #i = self.xvals_anim[num]
+        #line1.set_data([i, i], [self.ymin_anim-5, self.ymax_anim+5])
         
-        i = self.xvals_anim[num]
-        line1.set_data([i, i], [self.ymin_anim-5, self.ymax_anim+5])
+        xvals = self.map_value(self.xvals_anim,0,np.max(self.xvals_anim),0,len(self.midi_data)-1)
+        i = int(xvals[num])
+        point1a.set_data(self.t_data[i],self.midi_data[i])
+        point1b.set_data(self.t_data[i],self.midi_data_alt[i])
         
         xvals_alt = self.map_value(self.xvals_anim,0,np.max(self.xvals_anim),0,len(self.all_line_coords)-1)
         i_alt = int(xvals_alt[num])
 
         line_xdat, line_ydat = map(list, zip(*self.all_line_coords[i_alt]))
         line2.set_data([line_xdat[0], line_xdat[-1]], [line_ydat[0], line_ydat[-1]])
+        line3.set_data([line_xdat[0], line_xdat[-1]], [line_ydat[0], line_ydat[-1]])
+
+        return point1a, point1b, line2, line3,
+    
+    #ONLY ONE WAVELENGTH BAND? BENE - ONLY TWO LINES TO UPDATE.
+    def update_line_one(self,num,point1a,line2):
         
-        return line1, line2,
+        xvals = self.xvals_anim
+        i = int(xvals[num])
+        
+        point1a.set_data(self.t_data[i],self.midi_data[i])
+        line_xdat, line_ydat = map(list, zip(*self.all_line_coords[i]))
+        line2.set_data([line_xdat[0], line_xdat[-1]], [line_ydat[0], line_ydat[-1]])
+        
+        return point1a, line2,
+    
     
     def create_midi_animation(self):
         
@@ -1388,9 +1452,10 @@ class MainPage(tk.Frame):
             ax1.scatter(self.t_data, self.midi_data_alt, self.vel_data_alt, alpha=0.5,
                        edgecolors='black',color='tab:orange',label=self.band_alt)
             
-            v1_3 = scoreatpercentile(self.dat_alt*self.mask_bool,0.5)
-            v2_3 = scoreatpercentile(self.dat_alt*self.mask_bool,99.9)
-            norm_im3 = simple_norm(self.dat_alt*self.mask_bool,'asinh', min_percent=0.5, max_percent=99.9,
+            #if applicable, dat_alt already multiplied by bool mask
+            v1_3 = scoreatpercentile(self.dat_alt,0.5)
+            v2_3 = scoreatpercentile(self.dat_alt,99.9)
+            norm_im3 = simple_norm(self.dat_alt,'asinh', min_percent=0.5, max_percent=99.9,
                                   min_cut=v1_3, max_cut=v2_3)  #'beautify' the image
 
             ax3.imshow(self.dat_alt,origin='lower',norm=norm_im3,cmap='gray',alpha=0.9)
@@ -1420,7 +1485,7 @@ class MainPage(tk.Frame):
         
         v1_2 = float(self.v1slider.get())
         v2_2 = float(self.v2slider.get())
-        norm_im2 = simple_norm(self.dat*self.mask_bool,'asinh', min_percent=0.5, max_percent=99.9,
+        norm_im2 = simple_norm(self.dat,'asinh', min_percent=0.5, max_percent=99.9,
                                   min_cut=v1_2, max_cut=v2_2)  #'beautify' the image
         ax2.imshow(self.dat,origin='lower',norm=norm_im2,cmap='gray',alpha=0.9)
         
@@ -1437,27 +1502,29 @@ class MainPage(tk.Frame):
         ax1.scatter(self.t_data, self.midi_data, self.vel_data, alpha=0.5, color='green', 
                     marker='^', edgecolors='black', label=self.band)
         ax1.legend(fontsize=10,loc='upper left')
-        
-        line1, = ax1.plot([], [], lw=2)
-
+                
+        #initialize point
+        point1a, = ax1.plot([], [], 'ro', markersize=20, alpha=0.2)
+ 
         self.xmin_anim = 0
         self.xmax_anim = np.max(self.t_data)
 
-        self.xvals_anim = np.arange(0, self.xmax_anim+1, 0.05)   #possible x-values for each pixel line, increments of 0.05 (which are close enough that the bar appears to move continuously)
-
-        l1,v = ax1.plot(self.xmin_anim, self.ymin_anim, self.xmax_anim, self.ymax_anim, lw=2, color='red')
+        self.xvals_anim = np.arange(0,len(self.midi_data),1)
         
         if int(self.var_w1w3.get())>0:
-            line_anim = animation.FuncAnimation(fig, self.update_line_all, frames=len(self.xvals_anim), fargs=(l1,l2,l3,),blit=True)
+            point1b, = ax1.plot([], [], 'bo', markersize=20, alpha=0.2)
+            line_anim = animation.FuncAnimation(fig, self.update_line_all, frames=len(self.xvals_anim), fargs=(point1a,point1b,l2,l3,),blit=True)
         else:
-            line_anim = animation.FuncAnimation(fig, self.update_line_one, frames=len(self.xvals_anim), fargs=(l1,l2,),blit=True)
+            line_anim = animation.FuncAnimation(fig, self.update_line_one, frames=len(self.xvals_anim), fargs=(point1a,l2,),blit=True)
         
         ax1.set_xlabel('Time interval (s)', fontsize=12)
         ax1.set_ylabel('MIDI note', fontsize=12)
         fig.suptitle(self.galaxy_name,fontsize=15)
         
         FFWriter = animation.FFMpegWriter()
-        line_anim.save(ani_savename,fps=len(self.xvals_anim)/(self.time))      
+        
+        #I do not know why, I do not know how...but this +4 term ensures the best video-audio synchrony.
+        line_anim.save(ani_savename,fps=((len(self.xvals_anim))/self.time)+self.duration)
         
         del fig     #I am finished with the figure, so I shall delete references to the figure.
         

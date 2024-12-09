@@ -13,7 +13,7 @@ def run_cigale_all(sed_plots,destination,herschel=False):
     if not herschel:
         os.system('python generate_input_files.py -params params.txt')
     
-    os.system(f'python run_cigale_one.py -dir_path {destination} {sed_param} -params params.txt')
+    os.system(f'python cigale_setup.py -dir_path {destination} {sed_param} -params params.txt')
 
 
 def run_PDF_all(destination):
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     create_pdfs = param_dict['create_pdfs']
     
     run_cigale_all(sed_plots,destination,herschel)
-    run_PDF_all(destination)
+    #run_PDF_all(destination)
     
     print(f'SEDs+PDFs (if applicable) and results.fits located in {destination}/out/.')
     

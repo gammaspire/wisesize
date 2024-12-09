@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings('ignore')
 
+import sys
 import numpy as np
 from matplotlib import pyplot as plt
 from astropy.table import Table

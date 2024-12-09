@@ -6,6 +6,7 @@ homedir = os.getenv("HOME")
 import sys
 import fileinput
 import re
+from astropy.table import Table
 
 def run_genconf(dir_path):
     os.chdir(dir_path)
@@ -73,7 +74,7 @@ def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1, create_p
             modified_lines.append('   metallicity = 0.004, 0.02, 0.05 \n')
         elif re.match(r'^\s*variables\s*=',line):
             #modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin, dust.mass \n') 
-            modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.mass \n') 
+            modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, agn.fracAGN, attenuation.Av_ISM, dust.mass \n') 
         elif re.match(r'^\s*normalise\s*=',line):
             modified_lines.append('   normalise = True')
         elif re.match(r'^\s*Av_ISM\s*=',line):
@@ -149,6 +150,9 @@ if __name__ == "__main__":
         #extract parameters and assign to variables...
         nblocks = param_dict['nblocks']
         lim_flag = param_dict['lim_flag']
+        path_to_repos = param_dict['path_to_repos']
+        phot_table = param_dict['phot_table']
+        len_tab = len(Table.read(path_to_repos+phot_table))
         
         #in order to save the probability distribution functions, ncores = nblocks = 1
         if bool(param_dict['create_pdfs']):
@@ -177,7 +181,12 @@ if __name__ == "__main__":
         
         try:
             os.mkdir('PDF_fits')
-            os.system('mv VFID*fits PDF_fits')
+            #if I don't apply this one per VFID, then there is a "too many arguments" error
+            formatted_strings = [f"{num:04}" for num in np.arange(0,len_tab)]
+            
+            for num in formatted_strings:           
+                vfid = f'VFID{num}'
+                os.system(f'mv {vfid}*fits PDF_fits')
         except:
             pass
         
