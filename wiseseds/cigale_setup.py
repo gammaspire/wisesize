@@ -181,9 +181,11 @@ if __name__ == "__main__":
         
         try:
             os.mkdir('PDF_fits')
-            #if I don't apply this one per VFID, then there is a "too many arguments" error
+            
             formatted_strings = [f"{num:04}" for num in np.arange(0,len_tab)]
             
+            #if I don't apply this loop (one mv command per VFID), then there is a 
+            #"too many arguments" error. I do not want a "too many arguments" error.
             for num in formatted_strings:           
                 vfid = f'VFID{num}'
                 os.system(f'mv {vfid}*fits PDF_fits')

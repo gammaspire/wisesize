@@ -526,6 +526,8 @@ class MainPage(tk.Frame):
         except:
             self.mask_bool = np.zeros((len(self.dat_for_display),len(self.dat_for_display)))+1  #create a full array of 1s, won't affect image
             print('Mask image not found or not same dimensions as image; proceeding with default v1, v2, and normalization values.') 
+            self.path_to_mask.delete(0,tk.END)
+            self.path_to_mask.insert(0,'No Mask Found!')
             
         #except:
         #    if (galaxyband=='g') | (galaxyband=='r') | (galaxyband=='z'):

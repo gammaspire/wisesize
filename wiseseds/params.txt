@@ -5,7 +5,7 @@ vcosmic_table        vf_v2_environment.fits                 # table with Vcosmic
 phot_table           vf_v2_legacy_ephot.fits                # table with photometry
 extinction_table     vf_v2_extinction.fits                  # table with extinction parameters
 
-destination          /Users/k215c316/Desktop/cigale_vf     # directory for CIGALE output files
+destination          /Users/k215c316/Desktop/cigale_vf/     # directory where CIGALE output out/ is housed
 
 #---------------------------------- Parameters ----------------------------------
 
@@ -32,8 +32,8 @@ dust_module     dl2014                          # which dust module to use (dl20
 
 create_pdfs     True                            # if true, nblocks and ncores will default to 1
                                                 # amount of computation time will also grow, and...
-                                                # script will output .png images of PDFs for each
-                                                # galaxy.
+                                                # script will output 3x3 .png images of PDFs for each
+                                                # galaxy. WILL ALSO CREATE CORNERPLOTS FOR CIGALE PARAMS.
 
 delete_PDF_fits  False                          # removes PDF.fits files after creating PDF.png files
                                                 # particularly beneficial for storage control
