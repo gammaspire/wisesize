@@ -23,18 +23,20 @@ flux_ID_col     FLUX_AP06_                      # prefix column name for fluxes 
                                                 # (e.g., FLUX_AP06_G_ERR)
 
 
-nblocks         1                               # number of blocks to use
+nblocks         4                               # number of blocks to use
 ncores          1                               # number of cores to use
 lim_flag        noscaling                       # which lim_flag to use (noscaling, none, full, ...)
 sed_plots       True                            # indicates whether user would like SED plots
 sfh_module      sfh2exp                         # which sfh module to use (sfh2exp, sfhdelayed, ...)
 dust_module     dl2014                          # which dust module to use (dl2014 or dale2014)
 
-create_pdfs     True                            # if true, nblocks and ncores will default to 1
+create_pdfs     0                               # 0 if False, 1 if True.
+                                                #if true, nblocks and ncores will default to 1
                                                 # amount of computation time will also grow, and...
                                                 # script will output 3x3 .png images of PDFs for each
                                                 # galaxy. WILL ALSO CREATE CORNERPLOTS FOR CIGALE PARAMS.
 
-delete_PDF_fits  False                          # removes PDF.fits files after creating PDF.png files
+delete_PDF_fits  0                              # 0 if False, 1 if True.
+                                                # removes PDF.fits files after creating PDF.png files
                                                 # particularly beneficial for storage control
 

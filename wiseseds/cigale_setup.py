@@ -74,7 +74,7 @@ def add_params(dir_path,sed_plots=False,lim_flag='noscaling',nblocks=1, create_p
             modified_lines.append('   metallicity = 0.004, 0.02, 0.05 \n')
         elif re.match(r'^\s*variables\s*=',line):
             #modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, attenuation.Av_ISM, dust.alpha, dust.gamma, dust.qpah, dust.umean, dust.umin, dust.mass \n') 
-            modified_lines.append('  variables = sfh.sfr, stellar.m_star, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, agn.fracAGN, attenuation.Av_ISM, dust.mass \n') 
+            modified_lines.append('  variables = sfh.sfr, stellar.m_star, stellar.metallicity, sfh.burst_age, sfh.age, sfh.f_burst, sfh.tau_burst, sfh.tau_main, agn.fracAGN, attenuation.Av_ISM, dust.mass \n') 
         elif re.match(r'^\s*normalise\s*=',line):
             modified_lines.append('   normalise = True')
         elif re.match(r'^\s*Av_ISM\s*=',line):
@@ -155,13 +155,15 @@ if __name__ == "__main__":
         len_tab = len(Table.read(path_to_repos+phot_table))
         
         #in order to save the probability distribution functions, ncores = nblocks = 1
-        if bool(param_dict['create_pdfs']):
+        if bool(int(param_dict['create_pdfs'])):
             nblocks = 1
+            ncores = 1
+            print('Create PDFs set to True! nblocks = ncores = 1.')
     
     print('Configuring input text files...')
     run_genconf(dir_path)
 
-    add_params(dir_path,sed_plots,lim_flag,nblocks,create_pdfs=bool(param_dict['create_pdfs']))
+    add_params(dir_path,sed_plots,lim_flag,nblocks,create_pdfs=bool(int(param_dict['create_pdfs'])))
     print('Executing CIGALE...')
     run_cigale(dir_path)
     print('CIGALE is Fin!')
