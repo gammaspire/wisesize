@@ -495,7 +495,7 @@ class MainPage(tk.Frame):
     
     def initiate_canvas(self):
         
-        #I need to add a try...except statement here, in case a user accidentally clicks "Load/Refresh" without loading a galaxy first. If they do so, then try to successfully load a galaxy, the GUI will break.
+        #I need to add a try...except statement here, in case a user accidentally clicks "Load/Refresh" without loading a galaxy first. If they do so THEN try to successfully load a galaxy, the GUI will break.
         
         try:
             #delete any and all miscellany (galaxy image, squares, lines) from the canvas (created using 
