@@ -1,0 +1,16 @@
+#---------------------------------- File paths ----------------------------------
+
+main_dir         /mnt/astrophysics/kconger/                               #mounted dir for input/output images
+path_to_scripts  /mnt/astrophysics/kconger/github/wisesize/mucho-galfit/  #draco path for galfit code
+path_to_images   mg_output_wisesize/                                      #output path to image directories for each galaxy
+data_root_dir    /mnt/astrophysics/lsdr9-wisesize                         #where JM images are stored (RA directories)
+
+main_catalog     //.fits                                                  #full path (including filename) to main catalog
+phot_catalog     //.fits                                                  #full path (including filename) to phot catalog
+
+objid_col                                                                 #name of the objid column in the above catalogs
+primary_group_col                                                         #name of primary group flag column
+group_mult_col                                                            #name of group mult column (num galaxies in group?)
+group_name_col                                                            #name of group name column
+objname_col                                                               #name of objname column
+
