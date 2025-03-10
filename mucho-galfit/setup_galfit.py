@@ -13,7 +13,7 @@ USAGE:
 * on draco, move to /mnt/astrophysics/mg-output-wisesize
 
 * call as:
-    python /mnt/astrophysics/kconger/github/wisesize/mucho-galfit/setup_galfit.py
+    python /mnt/astrophysics/kconger_wisesize/github/wisesize/mucho-galfit/setup_galfit.py
 
     * will create directories of primary group galaxies. each directory will contain the image, noise, and psf.
 
@@ -88,14 +88,14 @@ def convert_invvar_noise(invvar_image, noise_image):
     # write out as noise image
     fits.writeto(noise_image,noise_data,header=header,overwrite=True)
     
-#path_to_repos e.g., /mnt/astrophysics/kconger/
+#path_to_repos e.g., /mnt/astrophysics/kconger_wisesize/
 def get_images(objid,ra,dec,objname,output_loc,data_root_dir):
     ###############################################################################
     ### GET IMAGES
     ###############################################################################
 
     #output_loc is the directory holding the individual galaxy output directories (which GALFIT will be pulling from!)
-    #e.g., /mnt/astrophysics/kconger/mg_output_wisesize/OBJ1000/
+    #e.g., /mnt/astrophysics/kconger_wisesize/mg_output_wisesize/OBJ1000/
     output_dir = os.path.join(output_loc,objid+'/')
     if not os.path.exists(output_dir):
         print("making the output directory ",output_dir)
@@ -106,7 +106,8 @@ def get_images(objid,ra,dec,objname,output_loc,data_root_dir):
         print(f"could not find data_root_dir - exiting")
         sys.exit()
 
-    ra_val = str(int(ra)) if len(str(int(ra)))==2 else '0'+str(int(ra))
+    ra_val = str(int(ra)) if len(str(int(ra)))==3 else '0'+str(int(ra))
+    dec_val = str(int(dec)) if len(str(int(dec)))==2 else '0'+str(int(dec))
     
     if dec>32.:   #if DEC>32 degrees, then galaxy is in "north" catalog
         data_dir = f'{data_root_dir}/dr9-north/native/{ra_val}/'
@@ -119,12 +120,17 @@ def get_images(objid,ra,dec,objname,output_loc,data_root_dir):
         sys.exit()
 
     print("source directory for JM images = ",data_dir)
-    im_name = f'SGA2025_J{ra_val+np.round(np.modf(ra,4))}+{np.round(dec,4)}.fits'
     
+    ra_string = ra_val + str(np.modf(ra)[0])[1:6]    
+    dec_string = dec_val + str(np.modf(dec)[0])[1:6]
+    im_name = f'SGA2025_J{ra_string}+{dec_string}.fits'
+
+        
+        
     extract_bands(data_dir,im_name=im_name,grz=False,WISE=False)
     
     for bandpass in ['r','g','z','W1','W2','W3','W4']:
-        image = im_name+'*'+bandpass+'*'
+        image = f'{im_name}*{bandpass}*'
         #invvar_image = f'{group_name}-custom-invvar-{bandpass}.fits.fz'    
         #psf_image = f'{group_name}-custom-psf-{bandpass}.fits.fz'
 
@@ -149,13 +155,12 @@ def get_images(objid,ra,dec,objname,output_loc,data_root_dir):
 
 if __name__ == '__main__':
 
-
     from astropy.table import Table
 
     # define environment variable so funpack can find the correct variables
     #os.environ["LD_LIBRARY_PATH"]="/opt/ohpc/pub/compiler/gcc/9.4.0/lib64:/home/siena.edu/rfinn/software/cfitsio-4.2.0/"
     
-    param_file = '/mnt/astrophysics/kconger/github/wisesize/mucho-galfit/paramfile.txt'
+    param_file = '/mnt/astrophysics/kconger_wisesize/github/wisesize/mucho-galfit/paramfile.txt'
         
     #create dictionary with keyword and values from param textfile
     param_dict={}
@@ -169,7 +174,7 @@ if __name__ == '__main__':
                 continue
     
     main_dir = param_dict['main_dir']
-    path_to_pyscripts = param_dict['path_to_scripts']
+    path_to_pyscripts = main_dir+param_dict['path_to_scripts']
     outdir = main_dir+param_dict['path_to_images']
     data_root_dir = param_dict['data_root_dir']
     
@@ -209,14 +214,14 @@ if __name__ == '__main__':
             #sourcelist.write(output_string)
             #sourcelist.close()
 
-            # copy images and funpack
+            # copy images
             obj_id = maintab[objid_col][i]
             ra = maintab['RA'][i]
             dec = maintab['DEC'][i]
             objname = maintab[objname_col][i]
             group_name = etab[group_name_col][i] # this is either the objname, or objname_GROUP for groups
 
-            get_images(obj_id,ra,objname,group_name,outdir,data_root_dir)
+            get_images(obj_id,ra,objname,outdir,data_root_dir)
 
             os.chdir(outdir)
 
