@@ -53,8 +53,14 @@ def pull_unwise_psf(ra, dec, coadd_id, band, path_to_image_dir):
     
     ra_val = str(int(ra)) if len(str(int(ra)))==3 else '0'+str(int(ra))
     dec_val = str(int(dec)) if len(str(int(dec)))==2 else '0'+str(int(dec))
+
+    #np.modf()[0] isolates the decimals
+    #str() converts to string
+    #+'000' ensures that there are at least 4 decimal places (including the required 1 from np.modf()
+    #[1:6] isolates '.xxxx', where xxxx are the 4 decimal places (and precludes 0 before .)
+    ra_string = ra_val + (str(np.modf(ra)[0])+'000')[1:6]    
+    dec_string = dec_val + (str(np.modf(dec)[0])+'000')[1:6]
     
-    #the [1, removes the 0 preceding the decimal, and the :6] goes to the fourth decimal place
     ra_string = ra_val + str(np.modf(ra)[0])[1:6]    
     dec_string = dec_val + str(np.modf(dec)[0])[1:6]
     

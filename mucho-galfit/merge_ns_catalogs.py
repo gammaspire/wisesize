@@ -11,9 +11,17 @@ def stack_cats(north,south,data_root_dit):
     stacked_catalogs = vstack([north,south])
     return stacked_catalogs
 
-def unique_cats(stacked_cat):
-    return unique(stacked_cat,keys='OBJNAME')
-
+def unique_cats(stacked_cat,create_objid=True):
+    unique_cat = unique(stacked_cat,keys='OBJNAME')
+    if create_objid:
+        unique_cat = create_OBJIDS(unique_cat)
+    return unique_cat
+    
+def create_OBJIDs(unique_cat):
+    formatted_strings = np.array([f"OBJID{num:04}" for num in np.arange(0,len(unique_cat))])
+    unique_cat['OBJID'] = formatted_strings  #add the new column
+    return unique_cat
+    
 def save_table(unique_cat,main_catalog_name,overwrite_flag=True):
     unique_cat.write(main_catalog_name,overwrite=overwrite_flag)
 

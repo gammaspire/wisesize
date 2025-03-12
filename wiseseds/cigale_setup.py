@@ -184,7 +184,7 @@ if __name__ == "__main__":
         try:
             os.mkdir('PDF_fits')
             
-            formatted_strings = [f"{num:04}" for num in np.arange(0,len_tab)]
+            formatted_strings = np.array([f"{num:04}" for num in np.arange(0,len_tab)])
             
             #if I don't apply this loop (one mv command per VFID), then there is a 
             #"too many arguments" error. I do not want a "too many arguments" error.

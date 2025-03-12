@@ -121,8 +121,12 @@ def get_images(objid,ra,dec,objname,output_loc,data_root_dir):
 
     print("source directory for JM images = ",data_dir)
     
-    ra_string = ra_val + str(np.modf(ra)[0])[1:6]    
-    dec_string = dec_val + str(np.modf(dec)[0])[1:6]
+    #np.modf()[0] isolates the decimals
+    #str() converts to string
+    #+'000' ensures that there are at least 4 decimal places (including the required 1 from np.modf()
+    #[1:6] isolates '.xxxx', where xxxx are the 4 decimal places 
+    ra_string = ra_val + (str(np.modf(ra)[0])+'000')[1:6]    
+    dec_string = dec_val + (str(np.modf(dec)[0])+'000')[1:6]
     im_name = f'SGA2025_J{ra_string}+{dec_string}.fits'
 
         

@@ -44,6 +44,7 @@ def generate_pdf_pngs(results, destination, index, delete_fits=False):
     bayes_list = get_bayes_list(results)
     
     bayes_list.remove('bayes.sfh.tau_main')   #remove; I decided to replace this parameter with agn_frac
+    bayes_list.remove('bayes.stellar.metallicity')   #remove also...I enjoy 3x3 grid
 
     fig, ax = plt.subplots(3, 3,figsize=(26,16))
     fig.suptitle(f'{galaxy_id} Probability Distribution Functions',fontsize=30,y=0.92)
@@ -52,7 +53,7 @@ def generate_pdf_pngs(results, destination, index, delete_fits=False):
     for n, item in enumerate(bayes_list):
         
         x_val = results[item][index]
-        x_err = results[item][index+1]
+        x_err = results[item+'_err'][index]
         
         ax[n].axvline(np.log10(x_val),color='red',ls='-.',label=f'Bayes Value = {np.log10(x_val):.3f}')
         ax[n].axvspan(x_val-x_err, x_val+x_err, alpha=0.1, color='red')   #shaded region

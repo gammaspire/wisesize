@@ -30,7 +30,7 @@ sed_plots       True                            # indicates whether user would l
 sfh_module      sfh2exp                         # which sfh module to use (sfh2exp, sfhdelayed, ...)
 dust_module     dl2014                          # which dust module to use (dl2014 or dale2014)
 
-create_pdfs     0                               # 0 if False, 1 if True.
+create_pdfs     1                               # 0 if False, 1 if True.
                                                 #if true, nblocks and ncores will default to 1
                                                 # amount of computation time will also grow, and...
                                                 # script will output 3x3 .png images of PDFs for each
