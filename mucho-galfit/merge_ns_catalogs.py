@@ -28,6 +28,7 @@ def save_table(unique_cat,main_catalog_name,overwrite_flag=True):
 if __name__ == '__main__':
 
     from astropy.table import Table, vstack, unique
+    import numpy as np
     
     param_file = '/mnt/astrophysics/kconger_wisesize/github/wisesize/mucho-galfit/paramfile.txt'
         
