@@ -14,7 +14,7 @@ def stack_cats(north,south,data_root_dit):
 def unique_cats(stacked_cat,create_objid=True):
     unique_cat = unique(stacked_cat,keys='OBJNAME')
     if create_objid:
-        unique_cat = create_OBJIDS(unique_cat)
+        unique_cat = create_OBJIDs(unique_cat)
     return unique_cat
     
 def create_OBJIDs(unique_cat):
