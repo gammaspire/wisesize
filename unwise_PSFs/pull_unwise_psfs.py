@@ -22,11 +22,12 @@ import sys
 mnt_path = '/mnt/astrophysics/kconger_wisesize/'
 code_path = mnt_path+'github/'
 
-#add some flipping print statements here idk
-
-sys.path.append(code_path+'unwise_psf/py/')
-import unwise_psf.unwise_psf as unwise_psf
-
+try:
+    sys.path.append(code_path+'unwise_psf/py/')
+    import unwise_psf.unwise_psf as unwise_psf
+except:
+    print('error importing unwise_psf.unwise_psf. check that your conda environment is set to wisesize!')
+    sys.exit()
 
 #read main table
 def read_table(path_to_table):
