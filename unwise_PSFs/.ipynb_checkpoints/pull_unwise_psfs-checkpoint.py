@@ -21,7 +21,7 @@ from astropy.table import Table
 mnt_path = '/mnt/astrophysics/kconger_wisesize/'
 code_path = mnt_path+'github/'
 
-os.chdir(code_path+'/unwise_psf/py/unwise_psf/')
+os.chdir(code_path+'unwise_psf/py/unwise_psf/')
 import unwise_psf.unwise_psf as unwise_psf
 
 
