@@ -1,4 +1,6 @@
 '''
+# NOTE: curated to run on draco VMS
+
 AIM: generate W1-4 unWISE PSFs for image with given RA and DEC
 
 PROCEDURE: 
@@ -19,7 +21,7 @@ from astropy.table import Table
 mnt_path = '/mnt/astrophysics/kconger_wisesize/'
 code_path = mnt_path+'github/'
 
-os.chdir(code_path+'/unwise_psf/py')
+os.chdir(code_path+'/unwise_psf/py/unwise_psf/')
 import unwise_psf.unwise_psf as unwise_psf
 
 
