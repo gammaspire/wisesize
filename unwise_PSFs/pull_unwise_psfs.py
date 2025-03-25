@@ -18,6 +18,7 @@ Multiple Galaxies:
 import os
 from astropy.table import Table
 import sys
+import glob
 
 mnt_path = '/mnt/astrophysics/kconger_wisesize/'
 code_path = mnt_path+'github/'
