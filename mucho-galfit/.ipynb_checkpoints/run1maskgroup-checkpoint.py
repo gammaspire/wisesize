@@ -43,12 +43,9 @@ from scipy.stats import scoreatpercentile
 
 homedir = os.getenv("HOME")
 # add in masking from halphagui (modified for WISESize)
-sys.path.append('/mnt/astrophysics/kconger_wisesize/github/wisesize/mucho-galfit/halphagui_modified/')
+sys.path.append('/mnt/astrophysics/kconger_wisesize/github/halphagui/')
 from maskwrapper import buildmask
 import imutils
-#^^^^^^change these, make MERGED CATALOG .py!!!
-
-
 import get_galaxy_params
 
 ### DICTIONARIES
@@ -356,7 +353,7 @@ def get_maskname(image):
                                                                                                   
 if __name__ == '__main__':
 
-    param_file = '/mnt/astrophysics/kconger/github/wisesize/mucho-galfit/paramfile.txt'
+    param_file = '/mnt/astrophysics/kconger/github/mucho-galfit/paramfile.txt'
         
     #create dictionary with keyword and values from param textfile
     param_dict={}
@@ -432,9 +429,9 @@ if __name__ == '__main__':
         
         # look in tables to find if file is group or not
         #if etab['GROUP_MULT'][matchindex] > 1:
-        #    image = f'{objname}_GROUP-custom-image-{bandpass}-im-{bandpass}.fits'
-        #    invvar_image = f'{objname}_GROUP-custom-invvar-{bandpass}.fits'    
-        #    psf_image = f'{objname}_GROUP-custom-psf-{bandpass}.fits'
+            #image = f'{objname}_GROUP-custom-image-{bandpass}-im-{bandpass}.fits'
+            #invvar_image = f'{objname}_GROUP-custom-invvar-{bandpass}.fits'    
+            #psf_image = f'{objname}_GROUP-custom-psf-{bandpass}.fits'
         #else:
         image = f'SGA2025_J{ra_val+np.round(np.modf(ra,4))}+{np.round(dec,4)}-im-{bandpass}.fits'
         invvar_image = f'SGA2025_J{ra_val+np.round(np.modf(ra,4))}+{np.round(dec,4)}-invvar-{bandpass}.fits'  

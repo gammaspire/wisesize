@@ -8,16 +8,16 @@ data_root_dir     /mnt/astrophysics/lsdr9-wisesize/         #where JM images are
 north_cat_name    wisesize-parent-dr9-north.fits            #north galaxies catalog, located in data_root_dir
 south_cat_name    wisesize-parent-dr9-south.fits            #south galaxies catalog, located in data_root_dir
 
-main_catalog    /mnt/astrophysics/lsdr9-wisesize/wisesize_main.fits      #full path (including filename) to main catalog
-                                                                         #this will also be to where merge_ns_catalogs.py 
-                                                                         #writes the output
-phot_catalog    //.fits                                                  #full path (including filename) to phot catalog
-gaia_star_cat   /mnt/astrophysics/catalogs/gaia-mask-dr9.virgo.fits      #path to gaia star reference catalog (for masking)
+main_catalog   /mnt/astrophysics/lsdr9-wisesize/wisesize_main.fits      #full path (including filename) to main catalog
+                                                                        #this will also be to where merge_ns_catalogs.py 
+                                                                        #writes the output
+phot_catalog   //.fits                                                  #full path (including filename) to phot catalog
+gaia_star_cat  /mnt/astrophysics/catalogs/gaia-mask-dr9.virgo.fits      #path to gaia star reference catalog (for masking)
 
 
-objid_col            OBJID                                   #name of the objid column in the above catalogs
-primary_group_col                                            #name of primary group flag column
-group_mult_col                                               #name of group mult column (num galaxies in group?)
-group_name_col                                               #name of group name column
-objname_col                                                  #name of objname column
+objid_col            OBJID                                  #name of the objid column in the above catalogs
+primary_group_col                                           #name of primary group flag column
+group_mult_col                                              #name of group mult column (num galaxies in group?)
+group_name_col                                              #name of group name column
+objname_col          OBJNAME                                #name of objname column
 
