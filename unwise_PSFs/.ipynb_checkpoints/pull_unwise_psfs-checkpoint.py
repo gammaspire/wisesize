@@ -116,7 +116,8 @@ def pull_unwise_psf(path_to_image_dir, coadd_id, band):
 
 
 def save_unwise_psf(im_name, band_psf):
-    band_psf.write(im_name, overwrite=True)
+    from astropy.io import fits
+    fits.writeto(im_name, band_psf, overwrite=True)
     
 if __name__ == '__main__':
 
