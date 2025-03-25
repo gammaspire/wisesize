@@ -19,6 +19,7 @@ import os
 from astropy.table import Table
 import sys
 import glob
+import numpy as np
 
 mnt_path = '/mnt/astrophysics/kconger_wisesize/'
 code_path = mnt_path+'github/'
