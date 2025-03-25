@@ -231,7 +231,7 @@ if __name__ == '__main__':
         #group_name = etab[group_name_col][i] # this is either the objname, or objname_GROUP for groups
         
         #if etab[primary_group_col][i] & (etab[group_mult_col][i] > 0): # make directory for primary targets
-            #galpath = outdir+etab[objid_col][i]
+        #galpath = outdir+etab[objid_col][i]
         path_to_image_dir = outdir+obj_id+'/'
         # make directory if it doesn't already exist
         if not os.path.exists(path_to_image_dir):

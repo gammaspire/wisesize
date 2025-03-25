@@ -161,7 +161,7 @@ if __name__ == '__main__':
                 #trim to only include primary galaxies; if no such flag exists, assume all galaxies are primary.
                 try:
                     primary_flag = maintab[primary_group_col]
-                else:
+                except:
                     primary_flag = np.ones(len(maintab),dtype=bool)   #all true
                 
                 maintab = maintab[primary_flag]
