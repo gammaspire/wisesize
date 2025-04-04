@@ -21,7 +21,7 @@ import sys
 import glob
 import numpy as np
 
-mnt_path = '/mnt/astrophysics/kconger_wisesize/'
+mnt_path = '/mnt/astrophysics/wisesize/'
 code_path = mnt_path+'github/'
 
 try:
@@ -121,7 +121,7 @@ def save_unwise_psf(im_name, band_psf):
     
 if __name__ == '__main__':
 
-    param_file = '/mnt/astrophysics/kconger_wisesize/github/wisesize/mucho-galfit/paramfile.txt'
+    param_file = '/mnt/astrophysics/wisesize/github/wisesize/mucho-galfit/paramfile.txt'
         
     #create dictionary with keyword and values from param textfile
     param_dict={}
