@@ -47,18 +47,18 @@ def create_fauxtab(IDs, redshifts, flux_tab, ext_tab):
     
     filter_names_all = ['FUV','NUV','G','R','Z','W1','W2','W3','W4']
     
-    faux_table = Table([flux_tab['VFID'],np.round(redshifts,4)],
-                           names=['VFID','redshift']) 
+    faux_table = Table([flux_tab['OBJID'],np.round(redshifts,4)],
+                           names=['OBJID','redshift']) 
     
     N=len(flux_tab) #all VF galaxies...north and south.
-    dtype=[('VFID','str'),('redshift','f4'),('FUV','f4'),('FUV_err','f4'),
+    dtype=[('OBJID','str'),('redshift','f4'),('FUV','f4'),('FUV_err','f4'),
            ('NUV','f4'),('NUV_err','f4'),('G','f4'),('G_err','f4'),
           ('R','f4'),('R_err','f4'),('Z','f4'),('Z_err','f4'),
           ('W1','f4'),('W1_err','f4'),('W2','f4'),('W2_err','f4'),
           ('W3','f4'),('W3_err','f4'),('W4','f4'),('W4_err','f4')]
     
     faux_tab = Table(data=np.zeros(N,dtype=dtype))
-    faux_tab['VFID']=IDs
+    faux_tab['OBJID']=IDs
     faux_tab['redshift']=redshifts
         
     for i in filter_names_all:

@@ -184,13 +184,19 @@ if __name__ == "__main__":
         try:
             os.mkdir('PDF_fits')
             
-            formatted_strings = np.array([f"{num:04}" for num in np.arange(0,len_tab)])
+            #4 for VFID (VFS), 5 for OBJID (WISESize)
+            if len(str(len_tab))==4:
+                formatted_strings = np.array([f"{num:04}" for num in np.arange(0,len_tab)])
+                ID_prefix='VFID'
+            if len(str(len_tab))==5:
+                formatted_strings = np.array([f"{num:05}" for num in np.arange(0,len_tab)])
+                ID_prefix='OBJID'
             
-            #if I don't apply this loop (one mv command per VFID), then there is a 
+            #if I don't apply this loop (one mv command per OBJID), then there is a 
             #"too many arguments" error. I do not want a "too many arguments" error.
             for num in formatted_strings:           
-                vfid = f'VFID{num}'
-                os.system(f'mv {vfid}*fits PDF_fits')
+                galID = f'{ID_prefix}{num}'
+                os.system(f'mv {ID_prefix}*fits PDF_fits')
         except:
             pass
         
