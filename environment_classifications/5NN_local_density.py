@@ -22,18 +22,18 @@ def convert_to_Mpc(dist_degrees, redshift):
     
     return dist_mpc
 
-def get_redshift_bounds(redshift, vr_sigma):
+def get_redshift_bounds(redshift, vr_limit):
     #because these are nearby galaxies, v=cz approximately holds
     #for the upper and lower vcosmic bounds, default is 500 km/s
     #convert that to redshift...then find the bounds.
-    redshift_sigma = vr_sigma/3.e5
+    redshift_sigma = vr_limit/3.e5
     
     upper_z_bound = redshift + redshift_sigma
     lower_z_bound = redshift - redshift_sigma
     
     return lower_z_bound, upper_z_bound
 
-def get_radius_bounds(redshift, ra, dec, radius_sigma):
+def get_radius_bounds(redshift, ra, dec, radius_limit):
     
     #we also want a "radius" of radius_sigma --> want galaxies within radius_sigma 'square' around central galaxy
     #convert radius_sigma to arcsec for easy comparison between RA and DEC values!
@@ -43,7 +43,7 @@ def get_radius_bounds(redshift, ra, dec, radius_sigma):
     
     #to find the radius corresponding to radius_sigma, tan(theta) = radius_sigma/d
     #theta = arctan(radius_sigma/d)   #RADIANS
-    radius_sigma = np.arctan(radius_sigma/distance)   #radians
+    radius_sigma = np.arctan(radius_limit/distance)   #radians
     radius_sigma = radius_sigma*180./np.pi   #degrees   
     
     #define upper and lower bounds --> the coordinate must be within 4 Mpc of central galaxy
@@ -64,8 +64,7 @@ def plot_5NN(all_RA, all_DEC, all_5NN):
     fig = figure.Figure(figsize=(14,6))
     ax = fig.add_subplot()
         
-    im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=all_5NN[good_flag], cmap='viridis', alpha=0.5,
-               s=5, vmin=-0.5, vmax=10)
+    im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=np.log10(all_5NN[good_flag]), cmap='viridis', alpha=0.5, vmin=-1, vmax=1.5)
     ax.invert_xaxis()
     ax.set_xlabel('RA',fontsize=14)
     ax.set_ylabel('DEC',fontsize=14)
@@ -74,7 +73,7 @@ def plot_5NN(all_RA, all_DEC, all_5NN):
     
     cb = fig.colorbar(im)
     cb.ax.tick_params(labelsize=14)
-    cb.set_label(r'5NN Density [Mpc$^{-2}$]',fontsize=14)
+    cb.set_label(r'$\log$($\Sigma_5$/ Mpc$^{-2}$)',fontsize=14)
     
     fig.savefig(homedir+'/Desktop/5NN_plot.png')
     
@@ -85,16 +84,20 @@ class central_galaxy():
         self.dec = dec
         self.redshift = redshift
         
-    def isolate_galaxy_region(self, cat, vr_sigma, radius_sigma):
-        z_lower, z_upper = get_redshift_bounds(self.redshift, vr_sigma)
-        ra_lower, ra_upper, dec_lower, dec_upper = get_radius_bounds(self.redshift,self.ra,self.dec,
-                                                                     radius_sigma)
+    def isolate_galaxy_region(self, cat, vr_limit, radius_limit):
+        z_lower, z_upper = get_redshift_bounds(self.redshift, vr_limit)
 
-        #generate a list of all galaxies whose RA and DEC values are within these bounds
-        ra_flag = (cat['RA']>ra_lower) & (cat['RA']<ra_upper)
-        dec_flag = (cat['DEC']>dec_lower) & (cat['DEC']<dec_upper)
-        ra_dec_flag = ra_flag & dec_flag
-        cat = cat[ra_dec_flag]
+        if radius_limit < 100.:
+            ra_lower, ra_upper, dec_lower, dec_upper = get_radius_bounds(self.redshift,self.ra,self.dec,
+                                                                     radius_limit)
+
+            #generate a list of all galaxies whose RA and DEC values are within these bounds
+            ra_flag = (cat['RA']>ra_lower) & (cat['RA']<ra_upper)
+            dec_flag = (cat['DEC']>dec_lower) & (cat['DEC']<dec_upper)
+            ra_dec_flag = ra_flag & dec_flag
+            cat = cat[ra_dec_flag]
+
+        cat = cat
 
         #from that list, cut galaxies which are beyond the redshift slice!
         z_flag = (cat['Z']>z_lower) & (cat['Z']<z_upper)
@@ -143,23 +146,23 @@ class central_galaxy():
 if __name__ == "__main__":
     
     if '-h' or '-help' in sys.argv:
-        print('-vr_sigma [int in km/s; default is 500] -radius_sigma [int in Mpc; default is 2]')
+        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)]')
     
-    if '-vr_sigma' in sys.argv:
-        p = sys.argv.index('-vr_sigma')
-        vr_sigma = int(sys.argv[p+1])
-        print(f'Using vr_sigma = {vr_sigma} km/s')
+    if '-vr_limit' in sys.argv:
+        p = sys.argv.index('-vr_limit')
+        vr_limit = int(sys.argv[p+1])
+        print(f'Using vr_limit = {vr_limit} km/s')
     else:
-        vr_sigma = 500  #km/s
-        print('Using vr_sigma = 500 km/s')
+        vr_limit = 500  #km/s
+        print('Using vr_limit = 500 km/s')
     
-    if '-radius_sigma' in sys.argv:
-        p = sys.argv.index('-radius_sigma')
-        radius_sigma = int(sys.argv[p+1])
-        print(f'Using vr_sigma = {radius_sigma} km/s')
+    if '-radius_limit' in sys.argv:
+        p = sys.argv.index('-radius_limit')
+        radius_limit = int(sys.argv[p+1])
+        print(f'Using radius_limit = {radius_limit} Mpc')
     else:
-        radius_sigma = 2.  #Mpc
-        print('Using radius_sigma = 2 Mpc')
+        radius_limit = 100.  #Mpc
+        print('Using radius_limit = 100 Mpc --> no limit!')
     
     start_time = time.perf_counter()
     
@@ -171,13 +174,13 @@ if __name__ == "__main__":
         #initiate class for central galaxy
         galaxy = central_galaxy(ra, dec, redshift)
         
-        galaxy.isolate_galaxy_region(cat, vr_sigma, radius_sigma)
+        galaxy.isolate_galaxy_region(cat, vr_limit, radius_limit)
         galaxy.calc_projected_distances()
         galaxy.calc_5NN()
         
         all_5NN[n] = galaxy.density_5NN
         
-    #plot_5NN(cat['RA'], cat['DEC'], all_5NN)
+    plot_5NN(cat['RA'], cat['DEC'], all_5NN)
     print('Number of Galaxies without 5NN:',len(all_5NN[all_5NN==-999]))
     
     end_time = time.perf_counter()
