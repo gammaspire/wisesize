@@ -8,10 +8,10 @@ import os
 homedir=os.getenv("HOME")
 
 cat = Table.read(homedir+'/Desktop/wisesize/wisesize_v2.fits')
-all_5NN = np.zeros(len(cat))
+all_kNN = np.zeros(len(cat))
 
 def convert_to_Mpc(dist_degrees, redshift):
-    #r_5 is in degrees.
+    #r_k is initially in degrees.
     #degrees --> radians --> Mpc
     
     dist_radians = dist_degrees * np.pi / 180.   #radians
@@ -55,16 +55,16 @@ def get_radius_bounds(redshift, ra, dec, radius_limit):
     
     return lower_RA_bound, upper_RA_bound, lower_DEC_bound, upper_DEC_bound
 
-def plot_5NN(all_RA, all_DEC, all_5NN):
+def plot_kNN(k, all_RA, all_DEC, all_kNN):
 
-    #define "good" flag, which filters out all instances where galaxies did not have a 5NN
+    #define "good" flag, which filters out all instances where galaxies did not have a kNN
     #given our isolation constraints
-    good_flag = (all_5NN!=-999)
+    good_flag = (all_kNN!=-999)
     
     fig = figure.Figure(figsize=(14,6))
     ax = fig.add_subplot()
         
-    im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=np.log10(all_5NN[good_flag]), cmap='viridis', alpha=0.5, vmin=-1, vmax=1.5)
+    im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=np.log10(all_kNN[good_flag]), cmap='viridis', alpha=0.5, s=5, vmin=-1, vmax=1.5)
     ax.invert_xaxis()
     ax.set_xlabel('RA',fontsize=14)
     ax.set_ylabel('DEC',fontsize=14)
@@ -73,16 +73,17 @@ def plot_5NN(all_RA, all_DEC, all_5NN):
     
     cb = fig.colorbar(im)
     cb.ax.tick_params(labelsize=14)
-    cb.set_label(r'$\log$($\Sigma_5$/ Mpc$^{-2}$)',fontsize=14)
+    cb.set_label(fr'$\log$($\Sigma_{k}$/ Mpc$^{-2}$)',fontsize=14)
     
-    fig.savefig(homedir+'/Desktop/5NN_plot.png')
+    fig.savefig(homedir+f'/Desktop/{k}NN_plot.png', dpi=100, bbox_inches='tight', pad_inches=0.2)
     
     
 class central_galaxy():
-    def __init__(self, ra, dec, redshift):
+    def __init__(self, ra, dec, redshift, k):
         self.ra = ra
         self.dec = dec
         self.redshift = redshift
+        self.k = k
         
     def isolate_galaxy_region(self, cat, vr_limit, radius_limit):
         z_lower, z_upper = get_redshift_bounds(self.redshift, vr_limit)
@@ -118,9 +119,9 @@ class central_galaxy():
 
             
     #from list of projected distance from nearby galaxies in the RA-DEC-z slice,
-    #calculate the 5NN density for the central galaxy
+    #calculate the kNN density for the central galaxy
     
-    def calc_5NN(self):
+    def calc_kNN(self):
     
         #arrange from closeset to farthest
         self.projected_distances = np.sort(self.projected_distances)
@@ -131,22 +132,22 @@ class central_galaxy():
         #now...calculate
         try:
             #projected distance to 5th nearest neighbor
-            r_5 = self.projected_distances[4]
+            r_k = self.projected_distances[4]
 
             #convert back to Mpc
-            r_5 = convert_to_Mpc(r_5, self.redshift)
+            r_k = convert_to_Mpc(r_k, self.redshift)
 
-            self.density_5NN = 5/(np.pi * r_5**2)
+            self.density_kNN = self.k/(np.pi * r_k**2)
     
         #if there are not >4 galaxies in the array, then return a NaN.
         except:
-            self.density_5NN = -999
+            self.density_kNN = -999
 
 
 if __name__ == "__main__":
     
     if '-h' or '-help' in sys.argv:
-        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)]')
+        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)] -k [int; default is 5 (for fifth nearest neighbor]')
     
     if '-vr_limit' in sys.argv:
         p = sys.argv.index('-vr_limit')
@@ -164,6 +165,14 @@ if __name__ == "__main__":
         radius_limit = 100.  #Mpc
         print('Using radius_limit = 100 Mpc --> no limit!')
     
+    if '-k' in sys.argv:
+        p = sys.argv.index('-k')
+        k = int(sys.argv[p+1])
+        print(f'Using k = {k}')
+    else:
+        k = 5
+        print(f'Using k = 5')
+    
     start_time = time.perf_counter()
     
     for n in range(len(cat)):
@@ -172,16 +181,16 @@ if __name__ == "__main__":
         redshift = cat['Z'][n]
         
         #initiate class for central galaxy
-        galaxy = central_galaxy(ra, dec, redshift)
+        galaxy = central_galaxy(ra, dec, redshift, k)
         
         galaxy.isolate_galaxy_region(cat, vr_limit, radius_limit)
         galaxy.calc_projected_distances()
-        galaxy.calc_5NN()
+        galaxy.calc_kNN()
         
-        all_5NN[n] = galaxy.density_5NN
+        all_kNN[n] = galaxy.density_kNN
         
-    plot_5NN(cat['RA'], cat['DEC'], all_5NN)
-    print('Number of Galaxies without 5NN:',len(all_5NN[all_5NN==-999]))
+    plot_kNN(k, cat['RA'], cat['DEC'], all_kNN)
+    print('Number of Galaxies without kNN:',len(all_kNN[all_kNN==-999]))
     
     end_time = time.perf_counter()
     
