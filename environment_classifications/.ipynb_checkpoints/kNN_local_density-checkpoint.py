@@ -73,8 +73,8 @@ def plot_kNN(k, all_RA, all_DEC, all_kNN):
         
     im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=np.log10(all_kNN[good_flag]), cmap='viridis', alpha=0.5, s=5, vmin=-1, vmax=1.5)
     ax.invert_xaxis()
-    ax.set_xlabel('RA',fontsize=14)
-    ax.set_ylabel('DEC',fontsize=14)
+    ax.set_xlabel('RA [deg]',fontsize=14)
+    ax.set_ylabel('DEC [deg]',fontsize=14)
     
     ax.tick_params(labelsize=14)
     
@@ -99,7 +99,7 @@ class central_galaxy():
         #consistency purposes I adjust the index accordingly
         #I remove the central galaxy THEN find the 5th smallest distance. conversely, VFS does not remove the
         #central galaxy
-        self.neighbor_index = 4
+        self.neighbor_index = k-1
         if self.sgy != None:
             self.neighbor_index = 3
         
@@ -157,14 +157,14 @@ class central_galaxy():
             return
         
         for g in range(len(self.trimmed_cat)):
-            projected_distance = np.sqrt((self.ra - self.trimmed_trimmed_cat['RA'][g])**2 + \
-                                         (self.dec - self.trimmed_trimmed_cat['DEC'][g])**2)
+            projected_distance = np.sqrt((self.ra - self.trimmed_cat['RA'][g])**2 + \
+                                         (self.dec - self.trimmed_cat['DEC'][g])**2)
             self.projected_distances[g] = projected_distance
 
             
     #from list of projected distance from nearby galaxies in the RA-DEC-z slice,
-    #calculate the kNN density for the central galaxy
-    def calc_kNN(self):
+    #calculate the kSigma density for the central galaxy
+    def calc_kSigma(self):
     
         #arrange from closeset to farthest
         self.projected_distances = np.sort(self.projected_distances)
@@ -181,11 +181,11 @@ class central_galaxy():
             if self.sgy==None:
                 r_k = convert_to_Mpc(r_k, self.redshift)
 
-            self.density_kNN = self.k/(np.pi * r_k**2)
+            self.density_kSigma = self.k/(np.pi * r_k**2)
     
         #if there are not >4 galaxies in the array, then return a NaN.
         except:
-            self.density_kNN = -999
+            self.density_kSigma = -999
 
 
 if __name__ == "__main__":
@@ -251,12 +251,12 @@ if __name__ == "__main__":
         
         galaxy.isolate_galaxy_region(cat, vr_limit, radius_limit, virgo_env)
         galaxy.calc_projected_distances()
-        galaxy.calc_kNN()
+        galaxy.calc_kSigma()
         
-        all_kNN[n] = galaxy.density_kNN
+        all_kNN[n] = galaxy.density_kSigma
         
     plot_kNN(k, cat['RA'], cat['DEC'], all_kNN)
-    print('Number of Galaxies without kNN:',len(all_kNN[all_kNN==-999]))
+    print('Number of Galaxies without kSigma:',len(all_kNN[all_kNN==-999]))
     
     end_time = time.perf_counter()
     
