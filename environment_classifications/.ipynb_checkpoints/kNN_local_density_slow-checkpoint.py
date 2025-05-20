@@ -1,7 +1,6 @@
 import numpy as np
 from astropy.table import Table
 from matplotlib import figure 
-from scipy.spatial import KDTree
 import time
 import sys
 
@@ -88,7 +87,6 @@ def plot_kNN(k, all_RA, all_DEC, all_kNN):
     
 class central_galaxy():
     def __init__(self, ra, dec, redshift, k, sgy=None, sgx=None, sgz=None):
-        
         self.ra = ra
         self.dec = dec
         self.redshift = redshift
@@ -101,9 +99,9 @@ class central_galaxy():
         #consistency purposes I adjust the index accordingly
         #I remove the central galaxy THEN find the 5th smallest distance. conversely, VFS does not remove the
         #central galaxy
-        self.neighbor_index = self.k+1  #0, 1, 2, 3, 4, 5  (5 is FIFTH neighbor...exclude CENTRAL GALAXY!)
+        self.neighbor_index = k-1
         if self.sgy != None:
-            self.neighbor_index = self.k  #Castignani+2022 includes central galaxy, meaning they really calculate k=4
+            self.neighbor_index = 3
         
     def isolate_galaxy_region(self, cat, vr_limit, radius_limit, virgo_env=None):
         
@@ -128,7 +126,9 @@ class central_galaxy():
          
         #needed for VFS comparison, otherwise can ignore.
         else:
-            sgy_lower, sgy_upper = get_sgy_bounds(self.sgy)            
+            sgy_lower, sgy_upper = get_sgy_bounds(self.sgy)
+            #np.abs(virgo_env['SGY'] - self.sgy)
+            
             
             #cut galaxies which are beyonw the sgy slice!
             sgy_flag = (virgo_env['SGY']>sgy_lower) & (virgo_env['SGY']<sgy_upper)
@@ -145,71 +145,23 @@ class central_galaxy():
     #for galaxies within this "trimmed" catalog, calculate the projected distance
     #between these and the central galaxy
     def calc_projected_distances(self):
-        
-        #NUMPY VECTORIZATION! I previously used a python for loop, which was wildy sub-optimal (very slow)
-        if self.sgy is not None:
-            dx = self.sgx - self.trimmed_virgo_env['SGX']
-            dz = self.sgz - self.trimmed_virgo_env['SGZ']
-            self.projected_distances = np.sqrt(dx**2 + dz**2)
-        else:
-            d_ra = self.ra - self.trimmed_cat['RA']
-            d_dec = self.dec - self.trimmed_cat['DEC']
-            self.projected_distances = np.sqrt(d_ra**2 + d_dec**2)
 
-    
-    def calc_bound_mask(self, vr_limit, virgo_env, indices):
+        #create empty array of projected distances
+        self.projected_distances=np.zeros(len(self.trimmed_cat))
         
-        if self.sgy is not None:
-            #filter neighbors by SGY
-            sgy = virgo_env['SGY'][indices]
-            sgy_lower, sgy_upper = get_sgy_bounds(self.sgy)
-            mask = (sgy >= sgy_lower) & (sgy <= sgy_upper)
-            return mask
-            
-        z = cat['Z'][indices]
-        z_lower, z_upper = get_redshift_bounds(self.redshift, vr_limit)
-        mask = (z >= z_lower) & (z <= z_upper)
-        return mask
-    
-    def calc_kSigma_with_tree(self, tree, coord_array, vr_limit, virgo_env=None):
+        if self.sgy != None:
+            for g in range(len(self.trimmed_cat)):
+                projected_distance = np.sqrt((self.sgx - self.trimmed_virgo_env['SGX'][g])**2 + \
+                                             (self.sgz - self.trimmed_virgo_env['SGZ'][g])**2)
+                self.projected_distances[g] = projected_distance
+            return
         
-        #central galaxy position
-        point = coord_array
-
-        #get distances for 100 objects relative to central galaxy...and including the central galaxy. 
-        #if self.k = 5, this means I am hoping that among the nearest 100 neighbors, at least 5 survive the z cut 
-        
-        dists, indices = tree.query(point, k=600)
-        mask = self.calc_bound_mask(vr_limit, virgo_env, indices)
-        
-        zero_mask = (dists!=0)
-        
-        filtered_dists=dists[mask&zero_mask]
-        
-        #if k=200 is not sufficient, complete a second iteration with k=10000
-        if len(filtered_dists) < self.k:
-            dists, indices = tree.query(point, k=10000)
-            mask = self.calc_bound_mask(vr_limit, virgo_env, indices)
-            
-            zero_mask = (dists!=0)
-            
-            filtered_dists=dists[mask&zero_mask]
-            
-        if len(filtered_dists) >= self.k:
-            #use the k valid neighbors, calculate projected distance. pull kth distance from r_k
-            index = self.k-1 if self.sgy is None else self.k   
-            
-            r_k = filtered_dists[index]
-            self.density_kSigma = self.k / (np.pi * r_k**2)
-            
-        else:
-            self.density_kSigma = -999
+        for g in range(len(self.trimmed_cat)):
+            projected_distance = np.sqrt((self.ra - self.trimmed_cat['RA'][g])**2 + \
+                                         (self.dec - self.trimmed_cat['DEC'][g])**2)
+            self.projected_distances[g] = projected_distance
 
             
-            
-            
-    #FOLLOWING IS NOW ARCHIVED. KEEPING FOR MUSEUM PURPOSES.
-    
     #from list of projected distance from nearby galaxies in the RA-DEC-z slice,
     #calculate the kSigma density for the central galaxy
     def calc_kSigma(self):
@@ -235,9 +187,7 @@ class central_galaxy():
         except:
             self.density_kSigma = -999
 
-            
-            
-            
+
 if __name__ == "__main__":
     
     if '-h' or '-help' in sys.argv:
@@ -276,36 +226,35 @@ if __name__ == "__main__":
         print('Using SGY from VFS catalogs...')
     else:
         virgo_env = None
-        #cat = Table.read(homedir+'/Desktop/wisesize/wisesize_v2.fits')
-        cat = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
-        
+        cat = Table.read(homedir+'/Desktop/wisesize/wisesize_v2.fits')
+    
     all_kNN = np.zeros(len(cat))
-    ra = cat['RA']
-    dec = cat['DEC']
-    redshift = cat['Z']
-    
-    if virgo_env is not None:
-        sgx_arr = virgo_env['SGX']
-        sgy_arr = virgo_env['SGY']
-        sgz_arr = virgo_env['SGZ']
-        coords = np.vstack((sgx_arr,sgz_arr)).T
-    else:
-        sgx_arr = sgy_arr = sgz_arr = [None] * len(cat)
-        coords = np.vstack((ra,dec)).T
-    
     
     start_time = time.perf_counter()
     
-    tree = KDTree(coords)
-
     for n in range(len(cat)):
-        galaxy = central_galaxy(ra[n], dec[n], redshift[n], k, sgy_arr[n], sgx_arr[n], sgz_arr[n])
+        ra = cat['RA'][n]
+        dec = cat['DEC'][n]
+        redshift = cat['Z'][n]
         
-        #compute kSigma using the tree
-        galaxy.calc_kSigma_with_tree(tree, coords[n], vr_limit, virgo_env)
+        try:
+            sgy = virgo_env['SGY'][n]
+            sgx = virgo_env['SGX'][n]
+            sgz = virgo_env['SGZ'][n]
+        except:
+            sgy = None
+            sgx = None
+            sgz = None
+        
+        #initiate class for central galaxy
+        galaxy = central_galaxy(ra, dec, redshift, k, sgy, sgx, sgz)
+        
+        galaxy.isolate_galaxy_region(cat, vr_limit, radius_limit, virgo_env)
+        galaxy.calc_projected_distances()
+        galaxy.calc_kSigma()
+        
         all_kNN[n] = galaxy.density_kSigma
-
-    
+        
     plot_kNN(k, cat['RA'], cat['DEC'], all_kNN)
     print('Number of Galaxies without kSigma:',len(all_kNN[all_kNN==-999]))
     
