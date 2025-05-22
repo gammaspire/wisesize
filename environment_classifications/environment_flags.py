@@ -1,6 +1,6 @@
 '''
-if galaxy in tempel catalogs, extract environment info
-if not (ALL environment flags are False), find nearest galaxy in RA-DEC-Z space and assign environment
+to-do: if ALL environment flags are False, find nearest galaxy in RA-DEC-Z space and assign environment
+might have to do that KDTree thing again. see kNN-local_density.py code
 '''
 
 import numpy as np
@@ -15,15 +15,14 @@ homedir=os.getenv("HOME")
 #nedlvs_tempel2017 --> cross-match of NED-LVS and Tempel+2017 catalog (using TOPCAT)
 def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017):
 
-    #isolate groupID and ngal columns from the cross-matched table
-    groupid_all = nedlvs_tempel2017['GroupID']
-    ngal_all = nedlvs_tempel2017['Ngal']
-
     #convert objnames from tempel catalog to a set
-    tempel_names = set(name.strip().lower() for name in nedlvs_tempel2017['OBJNAME'])
+    tempel_names = set(str(name).strip().lower() for name in nedlvs_tempel2017['OBJNAME'])
 
     #create a boolean mask for whether each name in the parent table is in the nedlvs-tempel2017 table
-    tempel2017_flag = [name.strip().lower() in tempel_names for name in nedlvs_parent['OBJNAME']]
+    tempel2017_flag = [
+        str(name).strip().lower() in tempel_names
+        for name in nedlvs_parent['OBJNAME']
+    ]
     
     return tempel2017_flag
     
@@ -217,7 +216,6 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
     ]
 
     return group_flag_column
-
 
 
 def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
