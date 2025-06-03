@@ -18,13 +18,27 @@ def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017):
     #convert objnames from tempel catalog to a set
     tempel_names = set(str(name).strip().lower() for name in nedlvs_tempel2017['OBJNAME'])
 
+    tempel_groupID = set(int(groupid) for groupid in nedlvs_tempel2017['GroupID'])
+    
     #create a boolean mask for whether each name in the parent table is in the nedlvs-tempel2017 table
     tempel2017_flag = [
         str(name).strip().lower() in tempel_names
         for name in nedlvs_parent['OBJNAME']
     ]
     
-    return tempel2017_flag
+    #create a set of {objname: groupID}
+    name_to_groupid = {
+        str(name).strip().lower(): int(groupid)
+        for name, groupid in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['GroupID'])
+    }
+
+    #apply mapping to nedlvs-parent, defaulting to -99
+    group_ids = [
+        name_to_groupid.get(str(name).strip().lower(), -99)
+        for name in nedlvs_parent['OBJNAME']
+    ]
+
+    return tempel2017_flag, group_ids
     
 
 #create a flag for the nedlvs-parent catalog that indicates whether the galaxy is in the Tempel+2014 filament catalog.
@@ -220,7 +234,7 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
 
 def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
     
-    tempel2017_flag = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
+    tempel2017_flag, groupIDs = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
     tempel2014_flag = create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014)
     
     kt2017_flag = create_kt2017_flag(nedlvs_parent, nedlvs_kt2017)
@@ -234,11 +248,11 @@ def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel201
     KT_pg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, poor=True)
     KT_rg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=True)
     
-    flags = [tempel2014_flag, tempel2017_flag, tempel_pg_flag, tempel_rg_flag, tempel_cluster_flag,
+    flags = [tempel2014_flag, tempel2017_flag, groupIDs, tempel_pg_flag, tempel_rg_flag, tempel_cluster_flag,
             nearfil_flag, farfil_flag, kt2017_flag, KT_pg_flag, KT_rg_flag]
-    names = ['tempel2014_flag', 'tempel2017_flag', 'tempel2017_poorgroup_flag', 'tempel2017_richgroup_flag',
-             'tempel2017_cluster_flag', 'tempel2014_nearfilament_flag', 'tempel2014_farfilament_flag', 'KT2017_flag',
-             'KT2017_pg_flag', 'KT2017_rg_flag']
+    names = ['tempel2014_flag', 'tempel2017_flag', 'tempel2017_groupIDs', 'tempel2017_poorgroup_flag',
+             'tempel2017_richgroup_flag', 'tempel2017_cluster_flag', 'tempel2014_nearfilament_flag', 
+             'tempel2014_farfilament_flag', 'KT2017_flag', 'KT2017_pg_flag', 'KT2017_rg_flag']
     
     for n in range(len(flags)):
         nedlvs_parent[names[n]] = flags[n]
