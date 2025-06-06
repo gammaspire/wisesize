@@ -31,19 +31,30 @@ def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017):
         str(name).strip().lower(): int(groupid)
         for name, groupid in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['GroupID'])
     }
+    
+    #do the same for Ngal
+    #create a set of {objname: groupID}
+    name_to_ngal = {
+        str(name).strip().lower(): int(ngal)
+        for name, ngal in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['Ngal'])
+    }
 
     #apply mapping to nedlvs-parent, defaulting to -99
     group_ids = [
         name_to_groupid.get(str(name).strip().lower(), -99)
         for name in nedlvs_parent['OBJNAME']
     ]
+    ngal = [
+        name_to_ngal.get(str(name).strip().lower(), -99)
+        for name in nedlvs_parent['OBJNAME']
+    ]
 
-    return tempel2017_flag, group_ids
+    return tempel2017_flag, group_ids, ngal
     
 
 #create a flag for the nedlvs-parent catalog that indicates whether the galaxy is in the Tempel+2014 filament catalog.
 #nedlvs_parent --> 1.8 million galaxy catalog
-#nedlvs_tempel2047 --> cross-match of NED-LVS and Tempel+2014 catalog (using TOPCAT)
+#nedlvs_tempel2017 --> cross-match of NED-LVS and Tempel+2014 catalog (using TOPCAT)
 def create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014):
     
     #convert objnames from tempel catalog to a set
@@ -66,12 +77,11 @@ def create_kt2017_flag(nedlvs_parent, nedlvs_kt2017):
     return kt2017_flag
 
 
-#create flags for Tempel+2017 groups -- poor group, rich group, or cluster!
-#that is, flags are row-matched to Tempel+2017 groups/clusters to indicate whether group is cluster or rich/poor group
+#create flags for Tempel+2017 groups -- group or cluster!
+#that is, flags are row-matched to Tempel+2017 groups/clusters to indicate whether group is cluster or group
 def tempel2017_group_flags(tempel2017_groups):
     
-    pg_flag = np.zeros(len(tempel2017_groups),dtype=bool)
-    rg_flag = np.zeros(len(tempel2017_groups),dtype=bool)
+    group_flag = np.zeros(len(tempel2017_groups),dtype=bool)
     cluster_flag = np.zeros(len(tempel2017_groups),dtype=bool)
 
     #note: n begins at 1, but index should begin at 0 (so I use [n-1] for indexing)
@@ -83,47 +93,46 @@ def tempel2017_group_flags(tempel2017_groups):
         #find number of members in the group
         ngal = tempel2017_groups[n-1]['Ngal']
         
-        pg_flag[n-1] = (M200<1e14) & (ngal<5)
-        rg_flag[n-1] = (M200<1e14) & (ngal>=5)
-        cluster_flag[n-1] = (M200>=1e14) & (ngal>=5)
+        group_flag[n-1] = (M200<1e14) & (ngal>=5)
+        cluster_flag[n-1] = (M200>=1e14)
         
-    return pg_flag, rg_flag, cluster_flag
+    return group_flag, cluster_flag
 
 
-def tempel2017_rpgc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, 
-                         cluster=False, poor=False, rich=False):
+#use to output either group or cluster flag array, row-matched to NED-LVS parent catalog
+def tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, 
+                         cluster=False, group=False):
     
     groupid_all = nedlvs_tempel2017['GroupID']
     
-    if poor:
-        group_flag, _, _ = tempel2017_group_flags(tempel2017_groups)
-    if rich:
-        _, group_flag, _ = tempel2017_group_flags(tempel2017_groups)
+    if group:
+        group_flag, _ = tempel2017_group_flags(tempel2017_groups)
     if cluster:
-        _, _, group_flag = tempel2017_group_flags(tempel2017_groups)
+        _, group_flag = tempel2017_group_flags(tempel2017_groups)
     
-    #I now have flags for whether the groups are poor groups, rich groups, or clusters, row-matched to the GroupID column
+    #I now have flags for whether the "groups" are groups or clusters, row-matched to the GroupID column
     #now I match galaxies to these group flags...
 
-    #build a "lookup" dictionary: {GroupID: pg_flag}
+    #build a "lookup" dictionary: {GroupID: group_flag}
     group_dict = {
         groupid: group_flag
         for groupid, group_flag in zip(tempel2017_groups['GroupID'], group_flag)
     }
     
-    #create the rg flag column for tempel2017 galaxies!
+    #create the group flag column for tempel2017 galaxies!
     tempel2017_flag = [
         group_dict.get(group_id, False)
         for group_id in nedlvs_tempel2017['GroupID']
     ]
     
-    #now...CREATE NED-LVS COLUMN as before -- match NED-LVS parent galaxies with these Tempel+2017 rich group flags
-    #build a "lookup" dictionary: {objname: rg_flag}
+    #now...CREATE NED-LVS COLUMN as before -- match NED-LVS parent galaxies with these Tempel+2017 group flags
+    #build a "lookup" dictionary: {objname: group_flag}
     group_dict_nedlvs = {
         name.strip().lower(): group_flag
         for name, group_flag in zip(nedlvs_tempel2017['OBJNAME'], tempel2017_flag)
     }
     
+    #row-match flags to NED-LVS parent catalog
     group_flag_column = [
         group_dict_nedlvs.get(name.strip().lower(), False)
         for name in nedlvs_parent['OBJNAME']
@@ -172,8 +181,7 @@ def tempel_field_flag(nedlvs_parent):
     tempel_flag = (nedlvs_parent['tempel2014_flag']) | (nedlvs_parent['tempel2017_flag'])
     
     #isolate galaxies which are not members of ANY of the non-field environments
-    env_flag = (~nedlvs_parent['tempel2017_poorgroup_flag']) & \
-           (~nedlvs_parent['tempel2017_richgroup_flag']) & \
+    env_flag = (~nedlvs_parent['tempel2017_group_flag']) & \
            (~nedlvs_parent['tempel2017_cluster_flag']) & \
            (~nedlvs_parent['tempel2014_nearfilament_flag']) & \
            (~nedlvs_parent['tempel2014_farfilament_flag'])
@@ -223,7 +231,7 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
         for name, group_flag in zip(nedlvs_kt2017['OBJNAME'], kt2017_flag)
     }
 
-    #creates row-matched rg flag for full NED-LVS (not just the galaxies cross-matched with KT+2017
+    #creates row-matched rg flag for full NED-LVS (not just the galaxies cross-matched with KT+2017)
     group_flag_column = [
         group_dict_nedlvs.get(name.strip().lower(), False)
         for name in nedlvs_parent['OBJNAME']
@@ -234,31 +242,29 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
 
 def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
     
-    tempel2017_flag, groupIDs = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
+    tempel2017_flag, groupIDs, ngal = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
     tempel2014_flag = create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014)
     
     kt2017_flag = create_kt2017_flag(nedlvs_parent, nedlvs_kt2017)
     
-    tempel_pg_flag = tempel2017_rpgc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups,poor=True)
-    tempel_rg_flag = tempel2017_rpgc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups,rich=True)
-    tempel_cluster_flag = tempel2017_rpgc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups,cluster=True)
+    tempel_group_flag = tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, group=True)
+    tempel_cluster_flag = tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, cluster=True)
     
     nearfil_flag, farfil_flag = tempel2014_filament_flags(nedlvs_parent, nedlvs_tempel2014)
     
     KT_pg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, poor=True)
     KT_rg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=True)
-    
-    flags = [tempel2014_flag, tempel2017_flag, groupIDs, tempel_pg_flag, tempel_rg_flag, tempel_cluster_flag,
+
+    flags = [tempel2014_flag, tempel2017_flag, groupIDs, ngal, tempel_group_flag, tempel_cluster_flag,
             nearfil_flag, farfil_flag, kt2017_flag, KT_pg_flag, KT_rg_flag]
-    names = ['tempel2014_flag', 'tempel2017_flag', 'tempel2017_groupIDs', 'tempel2017_poorgroup_flag',
-             'tempel2017_richgroup_flag', 'tempel2017_cluster_flag', 'tempel2014_nearfilament_flag', 
+    names = ['tempel2014_flag', 'tempel2017_flag', 'tempel2017_groupIDs', 'tempel2017_Ngal', 
+             'tempel2017_group_flag','tempel2017_cluster_flag', 'tempel2014_nearfilament_flag', 
              'tempel2014_farfilament_flag', 'KT2017_flag', 'KT2017_pg_flag', 'KT2017_rg_flag']
     
     for n in range(len(flags)):
         nedlvs_parent[names[n]] = flags[n]
     
     field_flag = tempel_field_flag(nedlvs_parent)
-    
     nedlvs_parent['tempel_field_flag'] = field_flag
     
     return nedlvs_parent
@@ -294,13 +300,13 @@ if __name__ == "__main__":
 
     print("""USAGE:
     * create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017) 
-         -- outputs flag (NED-LVS galaxies in Tempel+2017)
+         -- outputs flag and two arrays (NED-LVS galaxies in Tempel+2017, groupIDs, Ngal)
     * create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014) 
          -- outputs flag (NED-LVS galaxies in Tempel+2014)
     * create_kt2017_flag(nedlvs_parent, nedlvs_kt2017)
          -- outputs flag (NED-LVS galaxies in Kourkchi+Tully 2017)
-    * tempel2017_rpgc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, cluster=False, poor=False, rich=False)
-         -- outputs flag for NED-LVS galaxies in Tempel+2017 clusters, poor groups, or rich groups
+    * tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, cluster=False, group=False)
+         -- outputs flag for NED-LVS galaxies in Tempel+2017 clusters, or groups
     * tempel2014_filament_flags(nedlvs_parent, nedlvs_tempel2014) 
          -- outputs two flags for NED-LVS galaxies near (<0.5 h^-1 Mpc) or far from a filament (0.5 < dist < 1.0 h^-1 Mpc)
     * tempel_field_flag(nedlvs_parent) 
