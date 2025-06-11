@@ -7,6 +7,8 @@ import numpy as np
 from astropy.table import Table
 import os
 
+from scipy.spatial import KDTree
+
 homedir=os.getenv("HOME")
 
 
@@ -240,17 +242,71 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
     return group_flag_column
 
 
-def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
+#for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
+#cell values of the nearest Tempel galaxy in RA-DEC-redshift space
+def match_nontempel_galaxies(nedlvs_parent):
+    
+    #create flag for galaxies in either Tempel+2017 OR Tempel+2014 catalogs
+    tempel_flags = (nedlvs_parent['tempel2014_flag']) | (nedlvs_parent['tempel2017_flag'])
+
+    #determine the tempel indices...that is, where in nedlvs_parent the Tempel galaxies lie
+    #will be the same length as nedlvs_parent[tempel_flags] but with nedlvs_parent indices :-)
+    tempel_indices = np.where(tempel_flags)[0]
+
+    #do the same for nontempel_indices. crucial!
+    nontempel_indices = np.where(~tempel_flags)[0]
+
+    ra = nedlvs_parent['RA']
+    dec = nedlvs_parent['DEC']
+    z = nedlvs_parent['Z']
+
+    #create 3D KDTree (just as with 5NN code)
+    coords = np.vstack((ra,dec,z)).T
+
+    tempel_tree = KDTree(coords[tempel_flags])
+
+    #for non-Tempel galaxies galaxy:
+        # find nearest galaxy that IS in the Tempel catalogs (using tempel_tree)
+        # assign to that galaxy that nearest galaxy's environment flags
+
+    #isolate parent columns
+    nedlvs_envcols = [nedlvs_parent['tempel2017_groupIDs'], nedlvs_parent['tempel2017_group_flag'],
+                      nedlvs_parent['tempel2017_cluster_flag'], nedlvs_parent['tempel2014_nearfilament_flag'],
+                      nedlvs_parent['tempel2014_farfilament_flag'], nedlvs_parent['tempel_field_flag']]
+
+    #for every set of non-Tempel coordinates, find nearest TEMPEL GALAXY INDEX. 
+    #I then have to map that index onto the nedlvs_parent indices!
+    for i, point in enumerate(coords[~tempel_flags]):
+
+        central_index = nontempel_indices[i]
+
+        #outputs nearest index, which I aptly name "index"
+        #HOWEVER, this index corresponds to the index of the TEMPEL GALAXIES
+        _, index = tempel_tree.query(point)
+
+        index = tempel_indices[index]   #grab nedlvs_parent index of Tempel galaxy
+
+        #for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
+        #cell values of the nearest Tempel galaxy in RA-DEC-redshift space
+        for col in nedlvs_envcols:
+            col[central_index] = col[index]
+    
+    #return the updated nedlvs_parent table!
+    return nedlvs_parent
+
+
+#COMBINE THEM ALL. ALL TOGETHER NOW!
+def add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
     
     tempel2017_flag, groupIDs, ngal = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
     tempel2014_flag = create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014)
-    
-    kt2017_flag = create_kt2017_flag(nedlvs_parent, nedlvs_kt2017)
     
     tempel_group_flag = tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, group=True)
     tempel_cluster_flag = tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, cluster=True)
     
     nearfil_flag, farfil_flag = tempel2014_filament_flags(nedlvs_parent, nedlvs_tempel2014)
+    
+    kt2017_flag = create_kt2017_flag(nedlvs_parent, nedlvs_kt2017)
     
     KT_pg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, poor=True)
     KT_rg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=True)
@@ -268,6 +324,16 @@ def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel201
     nedlvs_parent['tempel_field_flag'] = field_flag
     
     return nedlvs_parent
+
+
+#ALL TOGETHER NOW, BUT FOR REAL.
+def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
+    
+    nedlvs_parent_tempel = add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)
+    
+    nedlvs_parent_all = match_nontempel_galaxies(nedlvs_parent_tempel)
+    
+    return nedlvs_parent_all
 
 
 def write_nedlvs_parent(nedlvs_parent, path, version_integer=1):
@@ -313,9 +379,13 @@ if __name__ == "__main__":
          -- outputs flag --> galaxies in Tempel catalogs but NOT in any of the environments are True; else, False.
     * KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poor=False) 
          -- outputs flag for NED-LVS galaxies in Kourkchi+Tully (2017) rich groups (rich=True) or poor groups (poor=True)
-    * add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)           -- outputs updated nedlvs_parent table
+    * add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)          -- outputs updated nedlvs_parent table. TEMPEL GALAXY FLAGS ONLY! All other galaxies will default to "False"
+    * match_nontempel_galaxies(nedlvs_parent)
+         -- outputs updated nedlvs_parent with non-Tempel galaxies adopting the env flags of their nearest Tempel neighbor
+    * add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups) 
+         -- outputs same as add_tempel_flags() BUT with the addition of match_nontempel_galaxies()
     * write_nedlvs_parent(nedlvs_parent, path_to_folder, version_integer=1)
-        -- saves table path_to_folder/nedlvs_parent_v{version_integer}.fits
+         -- saves table path_to_folder/nedlvs_parent_v{version_integer}.fits
     """)
     
     print('-----------------------------------------------------')
