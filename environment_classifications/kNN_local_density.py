@@ -5,6 +5,10 @@ from scipy.spatial import KDTree
 import time
 import sys
 
+###CONVERT TO SUPERGALACTIC COORDIANTES###
+sys.path.append(homedir+'/github/wisesize/')
+from universal_functions import RADEC_to_SG
+
 import os
 homedir=os.getenv("HOME")
 
@@ -63,6 +67,7 @@ def get_radius_bounds(redshift, ra, dec, radius_limit):
     
     return lower_RA_bound, upper_RA_bound, lower_DEC_bound, upper_DEC_bound
 
+#FOR RA-DEC!
 def plot_kNN(k, all_RA, all_DEC, all_kNN):
 
     #define "good" flag, which filters out all instances where galaxies did not have a kNN
@@ -84,6 +89,35 @@ def plot_kNN(k, all_RA, all_DEC, all_kNN):
     cb.set_label(fr'$\log$($\Sigma_{k}$/'+r'Mpc$^{-2}$)',fontsize=14)
     
     fig.savefig(homedir+f'/Desktop/{k}NN_plot.png', dpi=100, bbox_inches='tight', pad_inches=0.2)
+    
+def save_to_table(cat, all_kNN, k=5):
+    
+    #apply flags if they exist; else, 
+    try:
+        mstarflag = cat['Mstar_flag']
+        sfrflag = cat['SFR_flag']
+        ssfrflag = cat['sSFR_flag']
+    except:
+        if len(cat) != len(all_kNN):
+            print('Input table length not same as kNN array length. Check that flag column names match the function!')
+            print('Exiting.')
+            sys.exit()
+        mstarflag = np.ones(len(cat),dtype=bool)
+        sfrflag = np.ones(len(cat),dtype=bool)
+        ssfrflag = np.ones(len(cat),dtype=bool)
+        
+    #these are ALL flags applied to the 5NN input table
+    flags = (mstarflag) & (sfrflag) & (ssfrflag)
+
+    all_kNN_parent = np.full(len(cat), -999)
+    all_kNN_parent[flags] = all_kNN
+    
+    cat[f'2D_{k}NN'] = all_kNN_parent
+    
+    save_path = homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits'
+    cat.write(save_path,overwrite=True)
+    
+    print(f'2D_{k}NN column added to (or updated in) {save_path}')
     
     
 class central_galaxy():
@@ -204,44 +238,12 @@ class central_galaxy():
             
         else:
             self.density_kSigma = -999
-
-            
-            
-            
-    #FOLLOWING IS NOW ARCHIVED. KEEPING FOR MUSEUM PURPOSES.
-    
-    #from list of projected distance from nearby galaxies in the RA-DEC-z slice,
-    #calculate the kSigma density for the central galaxy
-    def calc_kSigma(self):
-    
-        #arrange from closeset to farthest
-        self.projected_distances = np.sort(self.projected_distances)
-
-        #remove the '0' element, since that is the distance of the central galaxy to itself!
-        self.projected_distances = np.delete(self.projected_distances,0)
-
-        #now...calculate
-        try:
-            #projected distance to 5th nearest neighbor
-            r_k = self.projected_distances[self.neighbor_index]
-
-            #convert back to Mpc (ONLY if not using supergalactic coordinates!)
-            if self.sgy==None:
-                r_k = convert_to_Mpc(r_k, self.redshift)
-
-            self.density_kSigma = self.k/(np.pi * r_k**2)
-    
-        #if there are not >4 galaxies in the array, then return a NaN.
-        except:
-            self.density_kSigma = -999
-
-            
-            
+      
             
 if __name__ == "__main__":
     
     if '-h' or '-help' in sys.argv:
-        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)] -k [int; default is 5 (for fifth nearest neighbor)] -vfs [if included, will use VFS catalog and SGY bounds (from Castignani+22) in place of the vr_limit slice; otherwise, will default to WISESize catalog]')
+        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)] -k [int; default is 5 (for fifth nearest neighbor)] -vfs [if included, will use VFS catalog and SGY bounds (from Castignani+22) in place of the vr_limit slice; otherwise, will default to NED-LVS catalog] -write [will write array output to nedlvs_parent table]')
     
     if '-vr_limit' in sys.argv:
         p = sys.argv.index('-vr_limit')
@@ -270,14 +272,35 @@ if __name__ == "__main__":
     if '-vfs' in sys.argv:
         phot_r = Table.read(homedir+'/Desktop/v2-20220820/vf_v2_r_photometry.fits')
         M_r_flag = phot_r['M_r']<=-15.7
-        print('Applying absolute r-band magnitude completeness flag (M_r<=-15.7)...')
+        print('Applying absolute r-band magnitude completeness flag (M_r<=-15.7) to VFS...')
         virgo_env = Table.read(homedir+'/Desktop/v2-20220820/vf_v2_environment.fits')[M_r_flag]
         cat = Table.read(homedir+'/Desktop/virgowise_files/VF_WISESIZE_photSNR.fits')[M_r_flag]
         print('Using SGY from VFS catalogs...')
     else:
         virgo_env = None
-        #cat = Table.read(homedir+'/Desktop/wisesize/wisesize_v2.fits')
         cat = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
+        
+        print('Applying mass completeness limit flag to catalog...')
+        try:
+            mstarflag = cat['Mstar_flag']
+        except:
+            print('No mass completeness limit flag found! Ignoring.')
+            mstarflag = np.ones(len(cat),dtype=bool)
+        
+        print('Applying sSFR limit flag to catalog...')
+        try:
+            ssfrflag = cat['sSFR_flag']
+        except:
+            print('No sSFR limit flag found! Ignoring.')
+            ssfrflag = np.ones(len(cat),dtype=bool)
+        
+        print('Applying SFR limit flag to catalog...')
+        try:
+            sfrflag = cat['SFR_flag']
+        except:
+            print('No SFR limit flag found! Ignoring.')
+            sfrflag = np.ones(len(cat),dtype=bool)
+        
         
     all_kNN = np.zeros(len(cat))
     ra = cat['RA']
@@ -288,11 +311,13 @@ if __name__ == "__main__":
         sgx_arr = virgo_env['SGX']
         sgy_arr = virgo_env['SGY']
         sgz_arr = virgo_env['SGZ']
-        coords = np.vstack((sgx_arr,sgz_arr)).T
     else:
-        sgx_arr = sgy_arr = sgz_arr = [None] * len(cat)
-        coords = np.vstack((ra,dec)).T
-    
+        #need to use SG coordinates to avoid problems with celestial sphere configuration and its effect on RA distances
+        sgx_arr, sgy_arr, sgz_arr = RADEC_to_SG(ra, dec, redshift)
+        #sgx_arr = sgy_arr = sgz_arr = [None] * len(cat)
+        #coords = np.vstack((ra,dec)).T
+        
+    coords = np.vstack((sgx_arr,sgz_arr)).T
     
     start_time = time.perf_counter()
     
@@ -307,7 +332,10 @@ if __name__ == "__main__":
 
     
     plot_kNN(k, cat['RA'], cat['DEC'], all_kNN)
-    print('Number of Galaxies without kSigma:',len(all_kNN[all_kNN==-999]))
+    print('# galaxies in input table without kSigma:',len(all_kNN[all_kNN==-999]))
+    
+    if '-write' in sys.argv:
+        save_to_table(cat, all_kNN, k)
     
     end_time = time.perf_counter()
     

@@ -373,16 +373,17 @@ if __name__ == "__main__":
          -- outputs flag (NED-LVS galaxies in Kourkchi+Tully 2017)
     * tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, cluster=False, group=False)
          -- outputs flag for NED-LVS galaxies in Tempel+2017 clusters, or groups
-    * tempel2014_filament_flags(nedlvs_parent, nedlvs_tempel2014) 
+    * tempel2014_filament_flags(nedlvs_parent, nedlvs_tempel2014)
          -- outputs two flags for NED-LVS galaxies near (<0.5 h^-1 Mpc) or far from a filament (0.5 < dist < 1.0 h^-1 Mpc)
-    * tempel_field_flag(nedlvs_parent) 
+    * tempel_field_flag(nedlvs_parent)
          -- outputs flag --> galaxies in Tempel catalogs but NOT in any of the environments are True; else, False.
-    * KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poor=False) 
+    * KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poor=False)
          -- outputs flag for NED-LVS galaxies in Kourkchi+Tully (2017) rich groups (rich=True) or poor groups (poor=True)
-    * add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)          -- outputs updated nedlvs_parent table. TEMPEL GALAXY FLAGS ONLY! All other galaxies will default to "False"
+    * add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)         
+         -- outputs updated nedlvs_parent table. TEMPEL GALAXY FLAGS ONLY! All other galaxies will default to "False"
     * match_nontempel_galaxies(nedlvs_parent)
          -- outputs updated nedlvs_parent with non-Tempel galaxies adopting the env flags of their nearest Tempel neighbor
-    * add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups) 
+    * add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)
          -- outputs same as add_tempel_flags() BUT with the addition of match_nontempel_galaxies()
     * write_nedlvs_parent(nedlvs_parent, path_to_folder, version_integer=1)
          -- saves table path_to_folder/nedlvs_parent_v{version_integer}.fits
