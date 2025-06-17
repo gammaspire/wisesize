@@ -28,7 +28,7 @@ from astropy.table import Table
 #isolate galaxies that are near the upper limit of our redshift range (z_max).
 #returns the flag which applies this condition
 def get_zflag(z, z_max):
-    return (np.abs(z_max-z)<0.05*z_max) #& (z<=z_max)
+    return (np.abs(z_max-z)<0.05*z_max) & (z<=z_max)
 
 
 #isolate galaxies which are sufficiently brighter than our survey's magnitude limit

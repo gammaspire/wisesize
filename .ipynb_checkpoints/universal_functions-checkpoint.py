@@ -14,15 +14,18 @@ def RADEC_to_SG(RA, DEC, Z):
     from astropy.coordinates import SkyCoord, ICRS, Galactic, Supergalactic
     import numpy as np
     import matplotlib.pyplot as plt
+    import os
+    homedir=os.getenv("HOME")
 
     zflag = (Z<0)
-    print(f'Number of objects with negative redshift: {Z[zflag]}')
+    print(f'Number of objects fed into RADEC_to_SG() with negative redshift: {len(Z[zflag])}')
     
-    ra = RA*u.deg
-    dec = DEC*u.deg
+    ra = RA[~zflag]*u.deg
+    dec = DEC[~zflag]*u.deg
+    z = Z[~zflag]
     c = 3e5 * u.km/u.s
     H0 = 74 *u.km/u.s/u.Mpc
-    distance = Z*c/H0
+    distance = z*c/H0
     
     #create SkyCoord object
     c_icrs = SkyCoord(ra=ra, dec=dec, distance=distance, frame='icrs')
@@ -38,26 +41,26 @@ def RADEC_to_SG(RA, DEC, Z):
     #if True, keep sgx value
     #if False, np.nan
     sgx_arr = np.full(len(zflag), np.nan)
-    sgx_arr[zflag] = sgx
+    sgx_arr[~zflag] = sgx
     
     sgy_arr = np.full(len(zflag), np.nan)
-    sgy_arr[zflag] = sgy
+    sgy_arr[~zflag] = sgy
     
     sgz_arr = np.full(len(zflag), np.nan)
-    sgz_arr[zflag] = sgz
+    sgz_arr[~zflag] = sgz
 
     #plot for diagnostic purposes. which SG coordinate best correlates with redshift?
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
 
-    sc1 = axs[0].scatter(z, np.abs(sgx_arr), s=2)
+    sc1 = axs[0].scatter(z, np.abs(sgx_arr[~zflag]), s=2)
     axs[0].set_xlabel('Redshift')
     axs[0].set_ylabel('|SGX [Mpc]|')
 
-    sc2 = axs[1].scatter(z, np.abs(sgy_arr), s=2)
+    sc2 = axs[1].scatter(z, np.abs(sgy_arr[~zflag]), s=2)
     axs[1].set_xlabel('Redshift')
     axs[1].set_ylabel('|SGY [Mpc]|')
 
-    sc3 = axs[2].scatter(z, np.abs(sgz_arr), s=2)
+    sc3 = axs[2].scatter(z, np.abs(sgz_arr[~zflag]), s=2)
     axs[2].set_xlabel('Redshift')
     axs[2].set_ylabel('|SGZ [Mpc]|')
 

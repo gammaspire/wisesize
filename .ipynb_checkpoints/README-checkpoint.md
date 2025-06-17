@@ -89,9 +89,10 @@ INCOMPLETE:
         mstarflag = cat['Mstar_flag']
         sfrflag = cat['SFR_flag']
         ssfrflag = cat['sSFR_flag']
+        zflag = cat['Z']>0
 
         #these are ALL flags applied to the 5NN input table
-        flags = (mstarflag) & (sfrflag) & (ssfrflag)
+        flags = (mstarflag) & (sfrflag) & (ssfrflag) & (zflag)
 
         all_5NN_parent = np.full(len(cat), -999)
         all_5NN_parent[flags] = all_5NN_500
