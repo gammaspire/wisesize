@@ -6,10 +6,14 @@ might have to do that KDTree thing again. see kNN-local_density.py code
 import numpy as np
 from astropy.table import Table
 import os
-
+import sys
 from scipy.spatial import KDTree
 
 homedir=os.getenv("HOME")
+
+###CONVERT TO SUPERGALACTIC COORDIANTES###
+sys.path.append(homedir+'/github/wisesize/')
+from universal_functions import RADEC_to_SG
 
 
 #create a flag for the nedlvs-parent catalog that indicates whether the galaxy is in the Tempel+2017 group/cluster catalog.
@@ -243,13 +247,13 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
 
 
 #for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
-#cell values of the nearest Tempel galaxy in RA-DEC-redshift space
+#cell values of the nearest Tempel galaxy in SGX-SGY-SGZ space
 def match_nontempel_galaxies(nedlvs_parent):
     
     #create flag for galaxies in either Tempel+2017 OR Tempel+2014 catalogs
     tempel_flags = (nedlvs_parent['tempel2014_flag']) | (nedlvs_parent['tempel2017_flag'])
 
-    #determine the tempel indices...that is, where in nedlvs_parent the Tempel galaxies lie
+    #determine the tempel indices...that is, where in nedlvs_parent the Tempel galaxies lie.
     #will be the same length as nedlvs_parent[tempel_flags] but with nedlvs_parent indices :-)
     tempel_indices = np.where(tempel_flags)[0]
 
@@ -259,10 +263,18 @@ def match_nontempel_galaxies(nedlvs_parent):
     ra = nedlvs_parent['RA']
     dec = nedlvs_parent['DEC']
     z = nedlvs_parent['Z']
-
+    
+    #need to use SG coordinates to avoid problems with celestial sphere configuration and its effect on RA distances
+    #output arrays will have same length as ra, dec, redshift arrays
+    sgx, sgy, sgz = RADEC_to_SG(ra, dec, z)
+    
     #create 3D KDTree (just as with 5NN code)
-    coords = np.vstack((ra,dec,z)).T
+    coords = np.vstack((sgx,sgy,sgz)).T
 
+    #replace np.nan entries -- these are indices at which the nedlvs_parent catalog's redshifts are -99
+    #not the cleanest solution, but hopefully in the future there will be no NEGATIVE REDSHIFTS
+    coords[np.isnan(coords)] = -99
+    
     tempel_tree = KDTree(coords[tempel_flags])
 
     #for non-Tempel galaxies galaxy:

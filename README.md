@@ -29,7 +29,12 @@ Various scripts for the analysis of nearby galaxies in the local Universe, prima
         ```
        
         * The output will be saved as `/Users/k215c316/Desktop/wisesize/nedlvs_parent_v1.fits`
-        * Row-matched to full NED-LVS, contains G object types only!
+        * Row-matched to full NED-LVS, contains WISESize_flag, SNR_flag, OBJID, RA, DEC, Z, Mstar_flag, SFR_flag, sSFR_flag
+            * NOTE: WISESize_flag does NOT include the SNR_flag
+
+### Add Mass Completeness, SFR Completeness, and sSFR Flags
+
+Companion notebooks located in `$wisesize/parent_sample/` but are also run as part of the Scaffold table in the above step
 
 ### Add Tempel Environment Flags 
     * Full instructions with commentary given in `~/github/wisesize/tempel_catalogs.ipynb`
@@ -65,9 +70,6 @@ Various scripts for the analysis of nearby galaxies in the local Universe, prima
     ```
     write_nedlvs_parent(updated_nedlvs_parent, path_to_folder, version_integer=1)
     ```
-
-### Add Mass Completeness, SFR Completeness, and sSFR Flags
-
 
 ### Add Fifth-Nearest-Neighbor Column
 #### Note: Only run AFTER mass completeness, SFR completeness, sSFR completeness flags are added to parent catalog

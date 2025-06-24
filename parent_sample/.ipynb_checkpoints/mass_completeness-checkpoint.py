@@ -132,4 +132,6 @@ def mass_completeness(mag, mag_lim, z, z_max, Mstar, percentile, sfr=None, plot=
             plot_sfrmstar(logSFR, logMstar, Mlimit, nbins=nbins)
             return
         plot_sfrmstar(logSFR, logMstar, Mlimit, hexbin=False)
+        
+    return Mlimit
     

@@ -8,22 +8,10 @@ import sys
 import os
 homedir=os.getenv("HOME")
 
-###CONVERT TO SUPERGALACTIC COORDIANTES###
+###CONVERSION FUNCTIONS###
 sys.path.append(homedir+'/github/wisesize/')
-from universal_functions import RADEC_to_SG
+from universal_functions import *
 
-
-def convert_to_Mpc(dist_degrees, redshift):
-    #r_k is initially in degrees.
-    #degrees --> radians --> Mpc
-    
-    dist_radians = dist_degrees * np.pi / 180.   #radians
-    
-    z_distance = (3.e5 * redshift)/74.   #Mpc
-    
-    dist_mpc = z_distance * np.tan(dist_radians)   #Mpc
-    
-    return dist_mpc
 
 def get_sgy_bounds(SGY):
     # FOR COMPARISON WITH CASTIGNANI+2022 5NN 2D DENSITITIES FOR VFS!
@@ -96,22 +84,18 @@ def save_to_table(cat, all_kNN, k=5):
     #apply flags if they exist; else, 
     try:
         mstarflag = cat['Mstar_flag']
-        sfrflag = cat['SFR_flag']
-        ssfrflag = cat['sSFR_flag']
     except:
         if len(cat) != len(all_kNN):
             print('Input table length not same as kNN array length. Check that flag column names match the function!')
             print('Exiting.')
             sys.exit()
         mstarflag = np.ones(len(cat),dtype=bool)
-        sfrflag = np.ones(len(cat),dtype=bool)
-        ssfrflag = np.ones(len(cat),dtype=bool)
     
-    #also add redshift flag! if redshift is zero, we do not want it. we cannot use it. ew.
+    #also add redshift flag! if redshift is < zero, we do not want it. we cannot use it. ew.
     zflag = cat['Z']>0
         
     #these are ALL flags applied to the 5NN input table
-    flags = (mstarflag) & (sfrflag) & (ssfrflag) & (zflag)
+    flags = (mstarflag) & (zflag)
 
     all_kNN_parent = np.full(len(cat), -999)
     all_kNN_parent[flags] = all_kNN
@@ -125,7 +109,7 @@ def save_to_table(cat, all_kNN, k=5):
     
     
 class central_galaxy():
-    def __init__(self, ra, dec, redshift, k, sgy=None, sgx=None, sgz=None):
+    def __init__(self, ra, dec, redshift, k, cat, sgy=None, sgx=None, sgz=None):
         
         self.ra = ra
         self.dec = dec
@@ -135,6 +119,8 @@ class central_galaxy():
         self.sgx = sgx
         self.sgz = sgz
         
+        self.cat = cat
+        
         #for VFS, 5NN is actually calculated as 4NN. the difference is ultimately rather trivial, but for
         #consistency purposes I adjust the index accordingly
         #I remove the central galaxy THEN find the 5th smallest distance. conversely, VFS does not remove the
@@ -142,17 +128,18 @@ class central_galaxy():
         #0, 1, 2, 3, 4, 5  (5 is FIFTH neighbor...exclude CENTRAL GALAXY!)
         #Castignani+2022 includes central galaxy, meaning they really calculate k=4
         
-    def isolate_galaxy_region(self, cat, vr_limit, radius_limit, virgo_env=None):
+    def isolate_galaxy_region(self, vr_limit, radius_limit, virgo_env=None):
         
-        #if no sgy value, then use redshifts to calculate width of "slice"
-        if self.sgy == None:
+        #use redshifts to calculate width of "slice"
+        if virgo_env is None:
             z_lower, z_upper = get_redshift_bounds(self.redshift, vr_limit)
             
             #from that list, cut galaxies which are beyond the redshift slice!
-            z_flag = (cat['Z']>z_lower) & (cat['Z']<z_upper)
+            z_flag = (self.cat['Z']>z_lower) & (self.cat['Z']<z_upper)
             
-            cat = cat[z_flag]
-        
+            cat = self.cat[z_flag]
+            
+            #this will very likely not ever be the case
             if radius_limit < 100.:
                 ra_lower, ra_upper, dec_lower, dec_upper = get_radius_bounds(self.redshift,self.ra,self.dec,
                                                                          radius_limit)
@@ -162,6 +149,8 @@ class central_galaxy():
                 ra_dec_flag = ra_flag & dec_flag
 
                 cat = cat[ra_dec_flag]
+            
+            self.trimmed_virgo_env=None
          
         #needed for VFS comparison, otherwise can ignore.
         else:
@@ -184,18 +173,24 @@ class central_galaxy():
     def calc_projected_distances(self):
         
         #NUMPY VECTORIZATION! I previously used a python for loop, which was wildy sub-optimal (very slow)
-        #checks first if user put in SG coordinates; if not, defaults to the somewhat unreliable RA-DEC distances
-        if self.sgy is not None:
+        #checks first if user put in SG coordinates; if not, defaults to RA-DEC great circle distances
+        if self.trimmed_virgo_env is not None:
             dx = self.sgx - self.trimmed_virgo_env['SGX']
             dz = self.sgz - self.trimmed_virgo_env['SGZ']
             self.projected_distances = np.sqrt(dx**2 + dz**2)
-        else:
-            d_ra = self.ra - self.trimmed_cat['RA']
-            d_dec = self.dec - self.trimmed_cat['DEC']
-            self.projected_distances = np.sqrt(d_ra**2 + d_dec**2)
 
+        elif self.sgy is not None:
+            dx = self.sgx - self.trimmed_cat['sgx_arr']
+            dz = self.sgz - self.trimmed_cat['sgz_arr']
+            self.projected_distances = np.sqrt(dx**2 + dz**2)
+        
+        else:
+            dist_rad = RADEC_to_dist_all(self.ra, self.dec, self.trimmed_cat['RA'], self.trimmed_cat['DEC'])
+            self.projected_distances = convert_to_Mpc(dist_rad, self.redshift)
+            
     
     #determine redshift bounds --> creates mask to isolate galaxies within the redshift limit
+    #apply this AFTER performing the tree query
     def calc_bound_mask(self, vr_limit, virgo_env, indices):
         
         if virgo_env is not None:
@@ -213,13 +208,31 @@ class central_galaxy():
         mask = (z >= z_lower) & (z <= z_upper)
         return mask
     
+    
+    def calc_kSigma(self, vr_limit, virgo_env=None):
+        
+        #0th index is the central galaxy's distance to itself. 
+        #the [1:] removes this 0th index
+        sorted_distances = np.sort(self.projected_distances)[1:]
+            
+        if len(sorted_distances) >= self.k-1:
+            #use the k valid neighbors, calculate projected distance. pull kth distance from r_k
+            index = self.k-1 if virgo_env is None else self.k-2
+            
+            r_k = sorted_distances[index]
+            self.density_kSigma = self.k / (np.pi * r_k**2)
+            
+        else:
+            self.density_kSigma = -999
+      
+    
     def calc_kSigma_with_tree(self, tree, coord_array, vr_limit, virgo_env=None):
         
         #central galaxy position
         point = coord_array
 
-        #get distances for 100 objects relative to central galaxy...and including the central galaxy. 
-        #if self.k = 5, this means I am hoping that among the nearest 100 neighbors, at least 5 survive the z cut 
+        #get distances for 500 objects relative to central galaxy...and including the central galaxy. 
+        #if self.k = 5, this means I am hoping that among the nearest 500 neighbors, at least 5 survive the z cut 
         
         dists, indices = tree.query(point, k=500)
         mask = self.calc_bound_mask(vr_limit, virgo_env, indices)
@@ -230,14 +243,14 @@ class central_galaxy():
         
         #if k=600 is not sufficient, complete a second iteration with k=10000
         if len(filtered_dists) < self.k:
-            dists, indices = tree.query(point, k=3500)
+            dists, indices = tree.query(point, k=10000)
             mask = self.calc_bound_mask(vr_limit, virgo_env, indices)
             
             zero_mask = (dists!=0)
             
             filtered_dists=dists[mask&zero_mask]
             
-        if len(filtered_dists) >= self.k:
+        if len(filtered_dists) >= self.k-1:
             #use the k valid neighbors, calculate projected distance. pull kth distance from r_k
             index = self.k-1 if virgo_env is None else self.k-2
             
@@ -246,12 +259,13 @@ class central_galaxy():
             
         else:
             self.density_kSigma = -999
-      
-            
+    
+    
+    
 if __name__ == "__main__":
     
     if '-h' or '-help' in sys.argv:
-        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)] -k [int; default is 5 (for fifth nearest neighbor)] -vfs [if included, will use VFS catalog and SGY bounds (from Castignani+22) in place of the vr_limit slice; otherwise, will default to NED-LVS catalog] -write [will write array output to nedlvs_parent table]')
+        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)] -k [int; default is 5 (for fifth nearest neighbor)] -vfs [if included, will use VFS catalog and SGY bounds (from Castignani+22) in place of the vr_limit slice; otherwise, will default to NED-LVS catalog] -radec [will calculate great circle distances using RA-DEC coordinates; note this will be considerably slower than the default SG coordinates due to KDTrees only supporting linear distances] -write [will write array output to nedlvs_parent table]')
     
     if '-vr_limit' in sys.argv:
         p = sys.argv.index('-vr_limit')
@@ -287,35 +301,24 @@ if __name__ == "__main__":
 
     else:
         virgo_env = None
-        cat = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
+        cat_full = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
         
         print('Applying mass completeness limit flag to catalog...')
         try:
-            mstarflag = cat['Mstar_flag']
+            mstarflag = cat_full['Mstar_flag']
         except:
             print('No mass completeness limit flag found! Ignoring.')
-            mstarflag = np.ones(len(cat),dtype=bool)
+            mstarflag = np.ones(len(cat_full),dtype=bool)
         
-        print('Applying sSFR limit flag to catalog...')
-        try:
-            ssfrflag = cat['sSFR_flag']
-        except:
-            print('No sSFR limit flag found! Ignoring.')
-            ssfrflag = np.ones(len(cat),dtype=bool)
-        
-        print('Applying SFR limit flag to catalog...')
-        try:
-            sfrflag = cat['SFR_flag']
-        except:
-            print('No SFR limit flag found! Ignoring.')
-            sfrflag = np.ones(len(cat),dtype=bool)
-        
-        print('Removing objects with negative redshifts...')
-        zflag = cat['Z']>0
+        print('Removing objects beyond the WISESize redshift and RA-DEC range...')
+        zflag = (cat_full['Z']>0.002) & (cat_full['Z']<0.025)
+        raflag = (cat_full['RA']>87) & (cat_full['RA']<300)
+        decflag = (cat_full['DEC']>-10) & (cat_full['DEC']<85)
         
         #applying all flags at once
-        cat = cat[(sfrflag) & (ssfrflag) & (mstarflag) * (zflag)]
+        cat = cat_full[(mstarflag) & (zflag) & (raflag) & (decflag)]
         
+        print(f'Number of starting galaxies: {len(cat)}')
         
     all_kNN = np.zeros(len(cat))
     ra = cat['RA']
@@ -326,30 +329,54 @@ if __name__ == "__main__":
         sgx_arr = virgo_env['SGX']
         sgy_arr = virgo_env['SGY']
         sgz_arr = virgo_env['SGZ']
-    else:
+        
+    elif '-radec' not in sys.argv:
         #need to use SG coordinates to avoid problems with celestial sphere configuration and its effect on RA distances
         #output arrays will have same length as ra, dec, redshift arrays
         sgx_arr, sgy_arr, sgz_arr = RADEC_to_SG(ra, dec, redshift)
         
+        #add columns to main table
+        cat['sgx_arr'] = sgx_arr
+        cat['sgy_arr'] = sgy_arr
+        cat['sgz_arr'] = sgz_arr
+        
+    else:
+        #assuming user wants RADEC distances, set SG coords to be None arrays
+        sgx_arr = sgy_arr = sgz_arr = [None] * len(cat)
+    
+    
     coords = np.vstack((sgx_arr,sgz_arr)).T
     
     start_time = time.perf_counter()
     
-    tree = KDTree(coords)
+    #ignore tree if user wants to use RA-DEC distances
+    tree = KDTree(coords) if '-radec' not in sys.argv else None
 
     for n in range(len(cat)):
-        galaxy = central_galaxy(ra[n], dec[n], redshift[n], k, sgy_arr[n], sgx_arr[n], sgz_arr[n])
+        #define galaxy class object
+        galaxy = central_galaxy(ra[n], dec[n], redshift[n], k, cat, sgy_arr[n], sgx_arr[n], sgz_arr[n])
         
-        #compute kSigma using the tree
-        galaxy.calc_kSigma_with_tree(tree, coords[n], vr_limit, virgo_env)
-        all_kNN[n] = galaxy.density_kSigma
+        #compute kSigma using the tree if using supergalactic coordinates
+        if '-radec' not in sys.argv:
+            galaxy.calc_kSigma_with_tree(tree, coords[n], vr_limit, virgo_env)
+            all_kNN[n] = galaxy.density_kSigma
+        
+        else:
+            #set up trimmed catalog (which restricts galaxies to be within redshift (and possibly radius) slice
+            galaxy.isolate_galaxy_region(vr_limit, radius_limit)
+            
+            #self-explanatory -- runs the function to calculated all projected distances relative to central galaxy
+            galaxy.calc_projected_distances()
+            
+            galaxy.calc_kSigma(vr_limit)
+            all_kNN[n] = galaxy.density_kSigma
 
     
-    plot_kNN(k, cat['RA'], cat['DEC'], all_kNN)
+    #plot_kNN(k, cat['RA'], cat['DEC'], all_kNN)
     print('# galaxies in input table without kSigma:',len(all_kNN[all_kNN==-999]))
     
     if '-write' in sys.argv:
-        save_to_table(cat, all_kNN, k)
+        save_to_table(cat_full, all_kNN, k)
     
     end_time = time.perf_counter()
     
