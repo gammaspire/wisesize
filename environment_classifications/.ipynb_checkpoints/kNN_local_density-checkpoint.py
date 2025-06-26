@@ -23,38 +23,6 @@ def get_sgy_bounds(SGY):
     
     return lower_sgy_bound, upper_sgy_bound
 
-def get_redshift_bounds(redshift, vr_limit):
-    #because these are nearby galaxies, v=cz approximately holds
-    #for the upper and lower vcosmic bounds, default is 500 km/s
-    #convert that to redshift...then find the bounds.
-    redshift_sigma = vr_limit/3.e5
-    
-    upper_z_bound = redshift + redshift_sigma
-    lower_z_bound = redshift - redshift_sigma
-    
-    return lower_z_bound, upper_z_bound
-
-def get_radius_bounds(redshift, ra, dec, radius_limit):
-    
-    #we also want a "radius" of radius_sigma --> want galaxies within radius_sigma 'square' around central galaxy
-    #convert radius_sigma to arcsec for easy comparison between RA and DEC values!
-    #default radius_sigma is 2. Mpc
-    #v=H0d=cz also approximately holds, where H0 = 74 km/s/Mpc
-    distance = (3.e5 * redshift)/74.   #Mpc
-    
-    #to find the radius corresponding to radius_sigma, tan(theta) = radius_sigma/d
-    #theta = arctan(radius_sigma/d)   #RADIANS
-    radius_sigma = np.arctan(radius_limit/distance)   #radians
-    radius_sigma = radius_sigma*180./np.pi   #degrees   
-    
-    #define upper and lower bounds --> the coordinate must be within 4 Mpc of central galaxy
-    #can loosely define this as the RA and DEC values never exceeding +/- 4 Mpc
-    upper_RA_bound = ra + radius_sigma   #value of max RA if DEC doesn't change
-    upper_DEC_bound = dec + radius_sigma   #value of max DEC if RA doesn't change
-    lower_RA_bound = ra - radius_sigma   #value of min RA if DEC doesn't change
-    lower_DEC_bound = dec - radius_sigma   #value of min DEC if RA doesn't change
-    
-    return lower_RA_bound, upper_RA_bound, lower_DEC_bound, upper_DEC_bound
 
 #FOR RA-DEC!
 def plot_kNN(k, all_RA, all_DEC, all_kNN):
@@ -78,8 +46,9 @@ def plot_kNN(k, all_RA, all_DEC, all_kNN):
     cb.set_label(fr'$\log$($\Sigma_{k}$/'+r'Mpc$^{-2}$)',fontsize=14)
     
     fig.savefig(homedir+f'/Desktop/{k}NN_plot.png', dpi=100, bbox_inches='tight', pad_inches=0.2)
-    
-def save_to_table(cat, all_kNN, k=5):
+
+
+def save_to_table(cat, all_kNN, k=5, version=1):
     
     #apply flags if they exist; else, 
     try:
@@ -91,18 +60,20 @@ def save_to_table(cat, all_kNN, k=5):
             sys.exit()
         mstarflag = np.ones(len(cat),dtype=bool)
     
-    #also add redshift flag! if redshift is < zero, we do not want it. we cannot use it. ew.
-    zflag = cat['Z']>0
-        
+    #also add WISESize flags
+    raflag = (cat['RA']>87) & (cat['RA']<300)
+    decflag = (cat['DEC']>-10) & (cat['DEC']<85)
+    zflag = (cat_full['Z']>0.002) & (cat_full['Z']<0.025)
+
     #these are ALL flags applied to the 5NN input table
-    flags = (mstarflag) & (zflag)
+    flags = (mstarflag) & (zflag) & (raflag) & (decflag)
 
     all_kNN_parent = np.full(len(cat), -999)
     all_kNN_parent[flags] = all_kNN
     
     cat[f'2D_{k}NN'] = all_kNN_parent
     
-    save_path = homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits'
+    save_path = homedir+f'/Desktop/wisesize/nedlvs_parent_v{version}.fits'
     cat.write(save_path,overwrite=True)
     
     print(f'2D_{k}NN column added to (or updated in) {save_path}')
@@ -186,7 +157,7 @@ class central_galaxy():
         
         else:
             dist_rad = RADEC_to_dist_all(self.ra, self.dec, self.trimmed_cat['RA'], self.trimmed_cat['DEC'])
-            self.projected_distances = convert_to_Mpc(dist_rad, self.redshift)
+            self.projected_distances = rad_to_Mpc(dist_rad, self.redshift)
             
     
     #determine redshift bounds --> creates mask to isolate galaxies within the redshift limit
@@ -376,7 +347,7 @@ if __name__ == "__main__":
     print('# galaxies in input table without kSigma:',len(all_kNN[all_kNN==-999]))
     
     if '-write' in sys.argv:
-        save_to_table(cat_full, all_kNN, k)
+        save_to_table(cat_full, all_kNN, k, version=1)
     
     end_time = time.perf_counter()
     

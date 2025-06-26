@@ -11,9 +11,9 @@ from scipy.spatial import KDTree
 
 homedir=os.getenv("HOME")
 
-###CONVERT TO SUPERGALACTIC COORDIANTES###
+###SPHERICAL TRIGONOMETRY, ETC.###
 sys.path.append(homedir+'/github/wisesize/')
-from universal_functions import RADEC_to_SG
+from universal_functions import *
 
 
 #create a flag for the nedlvs-parent catalog that indicates whether the galaxy is in the Tempel+2017 group/cluster catalog.
@@ -247,12 +247,143 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
 
 
 #for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
-#cell values of the nearest Tempel galaxy in SGX-SGY-SGZ space
-def match_nontempel_galaxies(nedlvs_parent):
+#cell values of the nearest Tempel galaxy in RA-DEC-Z space
+#vr_limit in km/s, radius_limit in Mpc
+def match_nontempel_galaxies(nedlvs_parent, vr_limit=1000, radius_limit=3):
+    
+    #diagnostic check
+    all_dist=[]
     
     #create flag for galaxies in either Tempel+2017 OR Tempel+2014 catalogs
     tempel_flags = (nedlvs_parent['tempel2014_flag']) | (nedlvs_parent['tempel2017_flag'])
+    
+    #isolate the banalities of astronomy research
+    ra = nedlvs_parent['RA'].data
+    dec = nedlvs_parent['DEC'].data
+    z = nedlvs_parent['Z'].data
+    
+    #package them in a tidy fashion
+    coords = np.vstack((ra,dec,z)).T
+    
+    #define WISESize sky boundaries
+    raflag = (ra>87.) & (ra<300.)
+    decflag = (dec>-10.) & (dec<85.)
+    zflag = (z>0.002) & (z<0.025)
+    
+    wisesizeflag = (raflag) & (decflag) & (zflag)
+    
+    
+    #determine the non-Tempel indices...that is, where in nedlvs_parent the non-Tempel galaxies lie.
+    #will be the same length as nedlvs_parent[~tempel_flags & wisesizeflag] but with nedlvs_parent indices :-)    
+    #do the same for nontempel_indices. crucial!
+    nontempel_indices = np.where((~tempel_flags) & (wisesizeflag))[0]
 
+    #isolate parent columns
+    nedlvs_envcols = ['tempel2017_groupIDs', 'tempel2017_group_flag',
+                      'tempel2017_cluster_flag', 'tempel2014_nearfilament_flag',
+                      'tempel2014_farfilament_flag', 'tempel_field_flag']
+    
+    counter_neartempel=0
+    counter_noneartempel=0
+    counter_noneartempel_dense=0
+    dense_list = []    #empty list; want to store non-Tempel index of galaxies with 10+ non-Tempel neighbors
+    
+    #for every set of non-Tempel coordinates, find nearest TEMPEL GALAXY INDEX. 
+        #...but only if the non-Tempel galaxy is (1) in RA-DEC and (2) the nearest Tempel 
+        #galaxy is within x Mpc of non-Tempel galaxy (x=3, maybe 4)
+    #I then have to map that index onto the nedlvs_parent indices!
+    
+    #note I ignore any galaxy not in wisesize bounds. their environment flags are irrelevant to me.
+    for i, point in enumerate(coords[(~tempel_flags) & (wisesizeflag)]):
+        
+        #pull central galaxy's index in ned-lvs
+        central_index = nontempel_indices[i]
+        
+        #we only want to compare to Tempel galaxies within the wisesize flag AND within the redshift constraints
+        #just as with my 5NN code, assume we want galaxies within a vr_limit.
+        lower_z, upper_z = get_redshift_bounds(point[2], vr_limit)     #point[2] = redshift || point is (ra,dec,z)
+        zsliceflag = (z>lower_z) & (z<upper_z)
+        
+        #now define radial limits. assume RA and DEC must not exceed whatever amount corresponds to radius_limit 
+        #this forms a circular projected radius on the sky. not a box, but a circle (seerkole)
+        radius_flag = get_radius_flag(point[2], point[0], point[1], ra, dec, radius_limit)
+        
+        #so. galaxy MUST be in the Tempel catalogs, be within the RA+DEC radial bounds, AND be within the redshift slice
+        #note this is a pre-selection of candidates
+        tempel_nedlvs_galaxies = nedlvs_parent[tempel_flags & radius_flag & zsliceflag]
+        tempel_ra = tempel_nedlvs_galaxies['RA']
+        tempel_dec = tempel_nedlvs_galaxies['DEC']
+        tempel_z = tempel_nedlvs_galaxies['Z']
+        
+        #if no Tempel galaxies lie within the bounds, the non-Tempel galaxy has no Tempel neighbors. womp womp.
+        if len(tempel_nedlvs_galaxies)<1:
+            #print('no Tempel matches found in the redshift slice.')
+            #print(f'here are the number of non-Tempel galaxies within the same constraints: ' + \
+            #      f'{len(nedlvs_parent[(~tempel_flags) & (radius_flag) & (zsliceflag)])}')
+            nedlvs_parent['tempel_field_flag'][central_index] = True
+            counter_noneartempel+=1
+            
+            if len(nedlvs_parent[(~tempel_flags) & (radius_flag) & (zsliceflag)]) >= 10:
+                counter_noneartempel_dense+=1  #if there are >= 10 non-Tempel neighbors, add +1
+                dense_list.append(central_index)
+            
+            continue   #proceed to next galaxy index
+        
+        #cool. there is at least one Tempel neighbor. whoop whoop.
+        #extract the 2D projected great circle distances between the non-Tempel galaxy and the remaining Tempel galaxies
+        #no 3D distances --> low redshifts, so peculiar velocities contribute significantly to redshift measurements
+        #output is in radians!        
+        
+        distances = RADEC_to_dist_all(point[0], point[1], tempel_ra, tempel_dec)
+        
+        #isolate the index at which the distance to the main galaxy is the smallest
+        #don't need to be worried about galaxy's distance to itself - distances are only to Tempel galaxies!
+        neighbor_index = np.argmin(distances)
+        
+        dist = distances[neighbor_index]
+        dist = rad_to_Mpc(dist, point[2])
+        
+        #diagnostic check
+        all_dist.append(dist)
+            
+        #non-Tempel galaxy is at central index
+        #then I trim the column using flags applied to isolate the TEMPEL galaxies in the slice, etc.
+            #that is what the neighbor_index is derived from, after all...
+        envcol_slice = (tempel_flags) & (radius_flag) & (zsliceflag)
+
+        for name in nedlvs_envcols:
+            nedlvs_parent[name][central_index] = tempel_nedlvs_galaxies[name][neighbor_index]
+        
+        counter_neartempel+=1
+    
+    #diagnostic checks
+    
+    total_nontempel = np.sum(~tempel_flags & wisesizeflag)
+    
+    print(f'Number (fraction) of galaxies with nearby Tempel matches: {counter_neartempel} ({counter_neartempel/total_nontempel:.2f})')
+    print(f'Number (fraction) of galaxies with no nearby Tempel matches: {counter_noneartempel} ({counter_noneartempel/total_nontempel:.2f})')
+    print(f'Number (fraction) of galaxies with at no nearby Tempel matches but at >10 nearby non-Tempel matches: {counter_noneartempel_dense} ({counter_noneartempel_dense/total_nomtempel:.2f})')
+    
+    #return the updated nedlvs_parent table!
+    return nedlvs_parent, all_dist, dense_list
+
+
+
+
+
+
+
+
+
+
+
+#for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
+#cell values of the nearest Tempel galaxy in SGX-SGY-SGZ space
+def match_nontempel_galaxies_SGXYZ(nedlvs_parent):
+    
+    #create flag for galaxies in either Tempel+2017 OR Tempel+2014 catalogs
+    tempel_flags = (nedlvs_parent['tempel2014_flag']) | (nedlvs_parent['tempel2017_flag'])
+    
     #determine the tempel indices...that is, where in nedlvs_parent the Tempel galaxies lie.
     #will be the same length as nedlvs_parent[tempel_flags] but with nedlvs_parent indices :-)
     tempel_indices = np.where(tempel_flags)[0]
@@ -285,7 +416,9 @@ def match_nontempel_galaxies(nedlvs_parent):
     nedlvs_envcols = [nedlvs_parent['tempel2017_groupIDs'], nedlvs_parent['tempel2017_group_flag'],
                       nedlvs_parent['tempel2017_cluster_flag'], nedlvs_parent['tempel2014_nearfilament_flag'],
                       nedlvs_parent['tempel2014_farfilament_flag'], nedlvs_parent['tempel_field_flag']]
-
+    
+    counter_neartempel=0
+    counter_noneartempel=0
     #for every set of non-Tempel coordinates, find nearest TEMPEL GALAXY INDEX. 
     #I then have to map that index onto the nedlvs_parent indices!
     for i, point in enumerate(coords[~tempel_flags]):
@@ -294,17 +427,32 @@ def match_nontempel_galaxies(nedlvs_parent):
 
         #outputs nearest index, which I aptly name "index"
         #HOWEVER, this index corresponds to the index of the TEMPEL GALAXIES
-        _, index = tempel_tree.query(point)
+        dist, index = tempel_tree.query(point)
+        
+        #check if the distance between the nearest Tempel galaxy and the non-Tempel galaxy is <= 2 Mpc. If so,
+        #assign non-Tempel galaxy's environment flags with those of the nearest Tempel galaxy.
+        if dist<=2:
+            
+            index = tempel_indices[index]   #grab nedlvs_parent index of Tempel galaxy
 
-        index = tempel_indices[index]   #grab nedlvs_parent index of Tempel galaxy
-
-        #for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
-        #cell values of the nearest Tempel galaxy in RA-DEC-redshift space
-        for col in nedlvs_envcols:
-            col[central_index] = col[index]
-    
+            #for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
+            #cell values of the nearest Tempel galaxy in RA-DEC-redshift space
+            for col in nedlvs_envcols:
+                col[central_index] = col[index]
+            
+            counter_neartempel+=1
+        
+        #if the distance is actually >1 Mpc, then assume the galaxy is isolated
+        else:
+            nedlvs_parent['tempel_field_flag'][central_index] = True
+            counter_noneartempel+=1
+        
+    print(f'Number (fraction) of galaxies with nearby Tempel matches: {counter_neartempel} ({counter_neartempel/len(coords[~tempel_flags]):.2f})')
+    print(f'Number (fraction) of galaxies with no nearby Tempel matches: {counter_noneartempel} ({counter_noneartempel/len(coords[~tempel_flags]):.2f})')
+        
     #return the updated nedlvs_parent table!
     return nedlvs_parent
+
 
 
 #COMBINE THEM ALL. ALL TOGETHER NOW!
@@ -339,11 +487,12 @@ def add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel
 
 
 #ALL TOGETHER NOW, BUT FOR REAL.
-def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
+def add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups, 
+                 vr_limit, radius_limit):
     
     nedlvs_parent_tempel = add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)
     
-    nedlvs_parent_all = match_nontempel_galaxies(nedlvs_parent_tempel)
+    nedlvs_parent_all = match_nontempel_galaxies(nedlvs_parent_tempel, vr_limit, radius_limit)
     
     return nedlvs_parent_all
 
@@ -393,10 +542,17 @@ if __name__ == "__main__":
          -- outputs flag for NED-LVS galaxies in Kourkchi+Tully (2017) rich groups (rich=True) or poor groups (poor=True)
     * add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)         
          -- outputs updated nedlvs_parent table. TEMPEL GALAXY FLAGS ONLY! All other galaxies will default to "False"
-    * match_nontempel_galaxies(nedlvs_parent)
+    * match_nontempel_galaxies(nedlvs_parent, vr_limit, radius_limit)
          -- outputs updated nedlvs_parent with non-Tempel galaxies adopting the env flags of their nearest Tempel neighbor
-    * add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups)
+         -- vr_limit in km/s, radius_limit in Mpc
+         -- vr_limit defined the "redshift slice," radius_limit defines the "2D circular region" about the central galaxy
+            for pre-selecting neighbor Tempel galaxy candidates. If no matches, defaults to Field environment flag.
+    * match_nontempel_galaxies_SGXYZ(nedlvs_parent)
+         -- same as above, but using SG coordinates in place of RA-DEC great circle distances
+    * add_all_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups, 
+                    vr_limit, radius_limit)
          -- outputs same as add_tempel_flags() BUT with the addition of match_nontempel_galaxies()
+         -- vr_limit in km/s, radius_limit in Mpc
     * write_nedlvs_parent(nedlvs_parent, path_to_folder, version_integer=1)
          -- saves table path_to_folder/nedlvs_parent_v{version_integer}.fits
     """)

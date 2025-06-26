@@ -49,7 +49,8 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
     #isolating all objects with a "galaxy" objtype
     t_gal = luminosity_table[luminosity_table['objtype']=='G']
     
-    #create Mstar flag!
+    #create Mstar (all) flag!
+    #this will correspond to the Mstar limit for ALL NED-LVS galaxies
     mag_lim = 16.6
     mag = t_gal['m_J']
 
@@ -66,6 +67,28 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
     Mstar_flag = np.log10(luminosity_table['Mstar'])>Mstar_limit
     
     
+    #create Mstar (WISESize) flag!
+    #this will correspond to the Mstar limit for all WISESize galaxies -- need for GALFIT, etc.!
+    
+    #isolating all objects with a "galaxy" objtype *and* have WISESize flag
+    t_gal_size = luminosity_table[(luminosity_table['objtype']=='G') & (wisesize_flag)]
+    
+    mag_lim = 16.6
+    mag = t_gal_size['m_J']
+
+    z=t_gal_size['z']
+    z_max=0.025
+
+    mstar = t_gal_size['Mstar']
+    sfr = t_gal_size['SFR_hybrid']
+
+    percentile = 0.95
+    
+    #returns a number
+    Mstar_size_limit = mass_completeness(mag, mag_lim, z, z_max, mstar, percentile, plot=False)
+    Mstar_size_flag = np.log10(luminosity_table['Mstar'])>Mstar_limit
+    
+    
     #create SFR flag
     #returns a number
     SFR_limit = sfr_completeness(nedlvs_table['Z'][snr_combined_flag],
@@ -80,11 +103,11 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
     
     
     parent_table = Table([nedlvs_table['OBJNAME'],objids,nedlvs_table['RA'],
-                              nedlvs_table['DEC'],luminosity_table['Z'],nedlvs_table['OBJTYPE'],
+                              nedlvs_table['DEC'],luminosity_table['z'],nedlvs_table['OBJTYPE'],
                               wisesize_flag,snr_nuv_flag,snr_w3_flag,snr_combined_flag,
-                              Mstar_flag,SFR_flag,sSFR_flag],
+                              Mstar_flag,SFR_flag,sSFR_flag,Mstar_size_flag],
                           names=['OBJNAME','OBJID','RA','DEC','Z','OBJTYPE','WISESize_flag','SNR_NUV_flag',
-                              'SNR_W3_flag','SNR_flag','Mstar_flag','SFR_flag','sSFR_flag'])
+                              'SNR_W3_flag','SNR_flag','Mstar_all_flag','SFR_flag','sSFR_flag','Mstar_size_flag'])
 
     #parent_table.sort('OBJID')
     

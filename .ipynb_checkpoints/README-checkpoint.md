@@ -29,8 +29,11 @@ Various scripts for the analysis of nearby galaxies in the local Universe, prima
         ```
        
         * The output will be saved as `/Users/k215c316/Desktop/wisesize/nedlvs_parent_v1.fits`
-        * Row-matched to full NED-LVS, contains WISESize_flag, SNR_flag, OBJID, RA, DEC, Z, Mstar_flag, SFR_flag, sSFR_flag
-            * NOTE: WISESize_flag does NOT include the SNR_flag
+        * Row-matched to full NED-LVS, contains WISESize_flag, SNR_flag, OBJID, RA, DEC, Z, Mstar_all_flag, SFR_flag, sSFR_flag, Mstar_size_flag
+            * NOTE I: WISESize_flag does NOT include the SNR_flag, Mstar_flag, SFR_flag, sSFR_flag
+            * NOTE II: There are two (2) Mstar flags:
+                * Mstar_all_flag is the mass completeness flag for the FULL NED-LVS (for 2D-5NN, etc.)
+                * Mstar_size_flag is the mass completeness flag for WISESize (for GALFIT, etc.)
 
 ### Add Mass Completeness, SFR Completeness, and sSFR Flags
 
