@@ -81,18 +81,16 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
 
     mstar = t_gal_size['Mstar']
     sfr = t_gal_size['SFR_hybrid']
-
-    percentile = 0.95
     
     #returns a number
     Mstar_size_limit = mass_completeness(mag, mag_lim, z, z_max, mstar, percentile, plot=False)
     Mstar_size_flag = np.log10(luminosity_table['Mstar'])>Mstar_limit
     
     
-    #create SFR flag
+    #create SFR flag; default percentile is 0.8 to isolate the 20% farthest galaxies according to redshift
     #returns a number
     SFR_limit = sfr_completeness(nedlvs_table['Z'][snr_combined_flag],
-                                 luminosity_table['SFR_hybrid'][snr_combined_flag], percentile, plot=False)
+                                 luminosity_table['SFR_hybrid'][snr_combined_flag], percentile=0.8, plot=False)
     
     SFR_flag = np.log10(luminosity_table['SFR_hybrid'])>SFR_limit
     
