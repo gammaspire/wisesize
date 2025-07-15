@@ -52,7 +52,7 @@ def save_to_table(cat, all_kNN, k=5, version=1):
     
     #apply flags if they exist; else, 
     try:
-        mstarflag = cat['Mstar_flag']
+        mstarflag = cat['Mstar_all_flag']
     except:
         if len(cat) != len(all_kNN):
             print('Input table length not same as kNN array length. Check that flag column names match the function!')
@@ -63,7 +63,7 @@ def save_to_table(cat, all_kNN, k=5, version=1):
     #also add WISESize flags
     raflag = (cat['RA']>87) & (cat['RA']<300)
     decflag = (cat['DEC']>-10) & (cat['DEC']<85)
-    zflag = (cat_full['Z']>0.002) & (cat_full['Z']<0.025)
+    zflag = (cat['Z']>0.002) & (cat['Z']<0.025)
 
     #these are ALL flags applied to the 5NN input table
     flags = (mstarflag) & (zflag) & (raflag) & (decflag)
@@ -180,7 +180,7 @@ class central_galaxy():
         return mask
     
     
-    def calc_kSigma(self, vr_limit, virgo_env=None):
+    def calc_kSigma(self, virgo_env=None):
         
         #0th index is the central galaxy's distance to itself. 
         #the [1:] removes this 0th index
@@ -276,7 +276,7 @@ if __name__ == "__main__":
         
         print('Applying mass completeness limit flag to catalog...')
         try:
-            mstarflag = cat_full['Mstar_flag']
+            mstarflag = cat_full['Mstar_all_flag']
         except:
             print('No mass completeness limit flag found! Ignoring.')
             mstarflag = np.ones(len(cat_full),dtype=bool)
@@ -339,7 +339,7 @@ if __name__ == "__main__":
             #self-explanatory -- runs the function to calculated all projected distances relative to central galaxy
             galaxy.calc_projected_distances()
             
-            galaxy.calc_kSigma(vr_limit)
+            galaxy.calc_kSigma()
             all_kNN[n] = galaxy.density_kSigma
 
     

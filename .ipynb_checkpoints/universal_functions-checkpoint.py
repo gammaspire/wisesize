@@ -153,18 +153,20 @@ def Mpc_to_deg(dist_mpc, redshift):
     import numpy as np
     import astropy.units as u
     from astropy.coordinates import SkyCoord
+    from astropy.cosmology import FlatLambdaCDM   #hello there.
     
-    r = (3.e5 * redshift)/74.   #Mpc; distance to object
+    cosmo = FlatLambdaCDM(H0=74, Om0=0.3)  #defining my "cosmology" ... Om0 = matter density parameter for present day
     
+    #just use cosmology to calculate separation/distance in Mpc
+    D_A = cosmo.angular_diameter_distance(redshift).to(u.Mpc).value  # angular diameter distance in Mpc
     
+    #theta = [arclength] / [distance]
+    dist_rad = dist_mpc / D_A
     
-    #theta = S/r
-    dist_rad = (dist_mpc/r) * u.radian   #radians
-    
-    #convert radians to degrees
+    #convert to degrees
     dist_deg = dist_rad.to(u.deg)
-    
     return dist_deg.value
+
 
 
 ###CALCULATE UPPER AND LOWER REDSHIFT BOUNDS GIVEN RECESSION VELOCITY LIMIT###
@@ -219,9 +221,15 @@ def get_radius_bounds(redshift, ra, dec, radius_limit):
 #returns boolean flag row-matched to ra_all and dec_all identifying objects which are within the radius limit
 def get_radius_flag(redshift, ra, dec, ra_all, dec_all, radius_limit):
     import numpy as np
+    import astropy.units as u
+    from astropy.coordinates import SkyCoord
     
     dist_deg = Mpc_to_deg(radius_limit, redshift)
-    
-    flag = (np.sqrt((ra-ra_all)**2 + (dec-dec_all)**2) <= dist_deg)
-    
-    return flag
+    #flag = (np.sqrt((ra-ra_all)**2 + (dec-dec_all)**2) <= dist_deg)
+
+    central_galaxy = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+    all_galaxies = SkyCoord(ra=ra_all*u.deg, dec=dec_all*u.deg)
+
+    separation = central_galaxy.separation(all_galaxies).deg  # precise angular separation in degrees
+
+    return (sep <= dist_deg)

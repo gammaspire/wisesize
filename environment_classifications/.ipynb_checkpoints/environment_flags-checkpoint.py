@@ -249,7 +249,7 @@ def KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=False, poo
 #for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
 #cell values of the nearest Tempel galaxy in RA-DEC-Z space
 #vr_limit in km/s, radius_limit in Mpc
-def match_nontempel_galaxies(nedlvs_parent, vr_limit=1000, radius_limit=3):
+def match_nontempel_galaxies(nedlvs_parent, vr_limit=1000, radius_limit=1):
     
     #diagnostic check
     all_dist=[]
@@ -362,7 +362,7 @@ def match_nontempel_galaxies(nedlvs_parent, vr_limit=1000, radius_limit=3):
     
     print(f'Number (fraction) of galaxies with nearby Tempel matches: {counter_neartempel} ({counter_neartempel/total_nontempel:.2f})')
     print(f'Number (fraction) of galaxies with no nearby Tempel matches: {counter_noneartempel} ({counter_noneartempel/total_nontempel:.2f})')
-    print(f'Number (fraction) of galaxies with at no nearby Tempel matches but at >10 nearby non-Tempel matches: {counter_noneartempel_dense} ({counter_noneartempel_dense/total_nomtempel:.2f})')
+    print(f'Number (fraction) of galaxies with at no nearby Tempel matches but at >10 nearby non-Tempel matches: {counter_noneartempel_dense} ({counter_noneartempel_dense/total_nontempel:.2f})')
     
     #return the updated nedlvs_parent table!
     return nedlvs_parent, all_dist, dense_list
