@@ -44,6 +44,17 @@ def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017):
         str(name).strip().lower(): int(ngal)
         for name, ngal in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['Ngal'])
     }
+    
+    #do the same for R200 and M200, because I can
+    name_to_r200 = {
+        str(name).strip().lower(): int(r200)
+        for name, r200 in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['R200'])
+    }
+    
+    name_to_m200 = {
+        str(name).strip().lower(): int(m200)
+        for name, m200 in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['M200'])
+    }
 
     #apply mapping to nedlvs-parent, defaulting to -99
     group_ids = [
@@ -54,8 +65,16 @@ def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017):
         name_to_ngal.get(str(name).strip().lower(), -99)
         for name in nedlvs_parent['OBJNAME']
     ]
+    r200 = [
+        name_to_r200.get(str(name).strip().lower(), -99)
+        for name in nedlvs_parent['OBJNAME']
+    ]
+    m200 = [
+        name_to_m200.get(str(name).strip().lower(), -99)
+        for name in nedlvs_parent['OBJNAME']
+    ]
 
-    return tempel2017_flag, group_ids, ngal
+    return tempel2017_flag, group_ids, ngal, r200, m200
     
 
 #create a flag for the nedlvs-parent catalog that indicates whether the galaxy is in the Tempel+2014 filament catalog.
@@ -99,7 +118,7 @@ def tempel2017_group_flags(tempel2017_groups):
         #find number of members in the group
         ngal = tempel2017_groups[n-1]['Ngal']
         
-        group_flag[n-1] = (M200<1e14) & (ngal>=5)
+        group_flag[n-1] = (M200<1e14) & (ngal>=2)
         cluster_flag[n-1] = (M200>=1e14)
         
     return group_flag, cluster_flag
@@ -369,14 +388,6 @@ def match_nontempel_galaxies(nedlvs_parent, vr_limit=1000, radius_limit=1):
 
 
 
-
-
-
-
-
-
-
-
 #for every relevant environment column in nedlvs_parent, assign the galaxy in question with the
 #cell values of the nearest Tempel galaxy in SGX-SGY-SGZ space
 def match_nontempel_galaxies_SGXYZ(nedlvs_parent):
@@ -458,7 +469,7 @@ def match_nontempel_galaxies_SGXYZ(nedlvs_parent):
 #COMBINE THEM ALL. ALL TOGETHER NOW!
 def add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
     
-    tempel2017_flag, groupIDs, ngal = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
+    tempel2017_flag, groupIDs, ngal, r200, m200 = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
     tempel2014_flag = create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014)
     
     tempel_group_flag = tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, group=True)
@@ -471,11 +482,12 @@ def add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel
     KT_pg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, poor=True)
     KT_rg_flag = KT2017_rpg_flag(nedlvs_parent, nedlvs_kt2017, kt2017_groups, rich=True)
 
-    flags = [tempel2014_flag, tempel2017_flag, groupIDs, ngal, tempel_group_flag, tempel_cluster_flag,
+    flags = [tempel2014_flag, tempel2017_flag, groupIDs, ngal, r200, m200, tempel_group_flag, tempel_cluster_flag,
             nearfil_flag, farfil_flag, kt2017_flag, KT_pg_flag, KT_rg_flag]
-    names = ['tempel2014_flag', 'tempel2017_flag', 'tempel2017_groupIDs', 'tempel2017_Ngal', 
-             'tempel2017_group_flag','tempel2017_cluster_flag', 'tempel2014_nearfilament_flag', 
-             'tempel2014_farfilament_flag', 'KT2017_flag', 'KT2017_pg_flag', 'KT2017_rg_flag']
+    names = ['tempel2014_flag', 'tempel2017_flag', 'tempel2017_groupIDs', 'tempel2017_Ngal',
+             'group_R200', 'group_M200', 'tempel2017_group_flag', 'tempel2017_cluster_flag', 
+             'tempel2014_nearfilament_flag', 'tempel2014_farfilament_flag', 'KT2017_flag', 
+             'KT2017_pg_flag', 'KT2017_rg_flag']
     
     for n in range(len(flags)):
         nedlvs_parent[names[n]] = flags[n]
