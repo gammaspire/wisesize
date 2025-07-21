@@ -95,3 +95,5 @@ def sfr_completeness(z, logSFR, percentile=.8, logMstar=None, plot=False):
         plot_sfrmstar(logSFR, logMstar, sfr_limit, hexbin=True, nbins=200)
 
     print(f'SFR Completeness: {sfr_limit:.3f}')
+    
+    return sfr_limit

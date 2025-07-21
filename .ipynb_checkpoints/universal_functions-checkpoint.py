@@ -164,7 +164,7 @@ def Mpc_to_deg(dist_mpc, redshift):
     dist_rad = dist_mpc / D_A
     
     #convert to degrees
-    dist_deg = dist_rad.to(u.deg)
+    dist_deg = (dist_rad*u.rad).to(u.deg)
     return dist_deg.value
 
 
@@ -232,4 +232,4 @@ def get_radius_flag(redshift, ra, dec, ra_all, dec_all, radius_limit):
 
     separation = central_galaxy.separation(all_galaxies).deg  # precise angular separation in degrees
 
-    return (sep <= dist_deg)
+    return (separation <= dist_deg)

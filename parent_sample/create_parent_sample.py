@@ -89,8 +89,9 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
     
     #create SFR flag; default percentile is 0.8 to isolate the 20% farthest galaxies according to redshift
     #returns a number
+    #must apply S/N flag first!
     SFR_limit = sfr_completeness(nedlvs_table['Z'][snr_combined_flag],
-                                 luminosity_table['SFR_hybrid'][snr_combined_flag], percentile=0.8, plot=False)
+                                 np.log10(luminosity_table['SFR_hybrid'][snr_combined_flag]), percentile=0.8, plot=False)
     
     SFR_flag = np.log10(luminosity_table['SFR_hybrid'])>SFR_limit
     

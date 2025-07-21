@@ -19,12 +19,10 @@ from universal_functions import *
 #create a flag for the nedlvs-parent catalog that indicates whether the galaxy is in the Tempel+2017 group/cluster catalog.
 #nedlvs_parent --> 1.8 million galaxy catalog
 #nedlvs_tempel2017 --> cross-match of NED-LVS and Tempel+2017 catalog (using TOPCAT)
-def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017):
+def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups):
 
     #convert objnames from tempel catalog to a set
     tempel_names = set(str(name).strip().lower() for name in nedlvs_tempel2017['OBJNAME'])
-
-    tempel_groupID = set(int(groupid) for groupid in nedlvs_tempel2017['GroupID'])
     
     #create a boolean mask for whether each name in the parent table is in the nedlvs-tempel2017 table
     tempel2017_flag = [
@@ -46,33 +44,25 @@ def create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017):
     }
     
     #do the same for R200 and M200, because I can
-    name_to_r200 = {
-        str(name).strip().lower(): int(r200)
-        for name, r200 in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['R200'])
+    #create group dictionary! {groupid: r200}; {groupid: m200}
+    r200_dict = {
+        int(groupid): r200
+        for groupid, r200 in zip(tempel2017_groups['GroupID'], tempel2017_groups['R200'])
     }
-    
-    name_to_m200 = {
-        str(name).strip().lower(): int(m200)
-        for name, m200 in zip(nedlvs_tempel2017['OBJNAME'], nedlvs_tempel2017['M200'])
+    m200_dict = {
+        int(groupid): m200*1e12
+        for groupid, m200 in zip(tempel2017_groups['GroupID'], tempel2017_groups['M200'])
     }
 
+
     #apply mapping to nedlvs-parent, defaulting to -99
-    group_ids = [
-        name_to_groupid.get(str(name).strip().lower(), -99)
-        for name in nedlvs_parent['OBJNAME']
-    ]
-    ngal = [
-        name_to_ngal.get(str(name).strip().lower(), -99)
-        for name in nedlvs_parent['OBJNAME']
-    ]
-    r200 = [
-        name_to_r200.get(str(name).strip().lower(), -99)
-        for name in nedlvs_parent['OBJNAME']
-    ]
-    m200 = [
-        name_to_m200.get(str(name).strip().lower(), -99)
-        for name in nedlvs_parent['OBJNAME']
-    ]
+    group_ids = [name_to_groupid.get(str(name).strip().lower(), -99) for name in nedlvs_parent['OBJNAME']]
+    
+    ngal = [name_to_ngal.get(str(name).strip().lower(), -99) for name in nedlvs_parent['OBJNAME']]
+    
+    #group_ids is now row-matched to nedlvs_parent. 
+    r200 = [r200_dict.get(group_id, -99) for group_id in group_ids]
+    m200 = [m200_dict.get(group_id, -99) for group_id in group_ids]
 
     return tempel2017_flag, group_ids, ngal, r200, m200
     
@@ -469,7 +459,7 @@ def match_nontempel_galaxies_SGXYZ(nedlvs_parent):
 #COMBINE THEM ALL. ALL TOGETHER NOW!
 def add_tempel_flags(nedlvs_parent, nedlvs_tempel2014, nedlvs_tempel2017, tempel2017_groups, nedlvs_kt2017, kt2017_groups):
     
-    tempel2017_flag, groupIDs, ngal, r200, m200 = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017)
+    tempel2017_flag, groupIDs, ngal, r200, m200 = create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups)
     tempel2014_flag = create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014)
     
     tempel_group_flag = tempel2017_gc_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups, group=True)
@@ -538,8 +528,9 @@ if __name__ == "__main__":
     kt2017_groups = Table.read(path+'KT2017_tabl1.fits')
 
     print("""USAGE:
-    * create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017) 
-         -- outputs flag and two arrays (NED-LVS galaxies in Tempel+2017, groupIDs, Ngal)
+    * create_tempel2017_flag(nedlvs_parent, nedlvs_tempel2017, tempel2017_groups) 
+         -- outputs flag and four arrays (NED-LVS galaxies in Tempel+2017, groupIDs, Ngal, 
+            group_M200 (if any), group_R200 (if any))
     * create_tempel2014_flag(nedlvs_parent, nedlvs_tempel2014) 
          -- outputs flag (NED-LVS galaxies in Tempel+2014)
     * create_kt2017_flag(nedlvs_parent, nedlvs_kt2017)

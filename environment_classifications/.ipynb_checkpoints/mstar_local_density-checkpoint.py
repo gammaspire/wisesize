@@ -109,8 +109,11 @@ class central_galaxy():
     
 if __name__ == "__main__":
     
+    cat_full = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
+    Mstar_full = Table.read(homedir+'/Desktop/wisesize/archive_tables/NEDLVS_20210922_v2.fits')['Mstar']
+    
     if '-h' or '-help' in sys.argv:
-        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 1] -write [will write array output to nedlvs_parent table]')
+        print('-vr_limit [int in km/s; default is 500] -radius_limit [number in Mpc OR "r200" to use the r200 of the group when available; default is 1] -write [will write array output to nedlvs_parent table]')
     
     if '-vr_limit' in sys.argv:
         p = sys.argv.index('-vr_limit')
@@ -122,15 +125,27 @@ if __name__ == "__main__":
     
     if '-radius_limit' in sys.argv:
         p = sys.argv.index('-radius_limit')
-        radius_limit = float(sys.argv[p+1])
-        print(f'Using radius_limit = {radius_limit} Mpc')
+        if (sys.argv[p+1] != 'r200'):
+            radius_limit = float(sys.argv[p+1])
+            print(f'Using radius_limit = {radius_limit} Mpc')
+            
+            #create row-matched array for every galaxy...ensures no errors now that array parameter is an option
+            radius_limit = np.zeros(len(cat_full))+radius_limit
+            
+        else:
+            try:
+                radius_limit = cat_full['group_R200']
+                print(f'Using variable radius limit')
+            except:
+                print('R200 column not found in nedlvs_parent catalog! Exiting.')
+                sys.exit()
     else:
         radius_limit = 1.  #Mpc
         print('Using radius_limit = 1 Mpc')
-    
-    cat_full = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
-    Mstar_full = Table.read(homedir+'/Desktop/wisesize/archive_tables/NEDLVS_20210922_v2.fits')['Mstar']
         
+        #create row-matched array for every galaxy...ensures no errors now that array parameter is an option
+        radius_limit = np.zeros(len(cat_full))+radius_limit
+
     print('Applying mass completeness limit flag to catalog...')
     try:
         mstarflag = cat_full['Mstar_all_flag']
@@ -146,7 +161,10 @@ if __name__ == "__main__":
     #applying all flags at once
     cat = cat_full[(mstarflag) & (zflag) & (raflag) & (decflag)]
     Mstar = Mstar_full[(mstarflag) & (zflag) & (raflag) & (decflag)]
-    
+        
+    radius_limit = radius_limit[(mstarflag) & (zflag) & (raflag) & (decflag)]
+    radius_limit[radius_limit==-99.] = 0.3 #Mpc, corresponding to 300 kpc. default for galaxies not in Tempel group!
+                                            
     #append Mstar column to trimmed catalog
     cat['Mstar'] = Mstar
 
@@ -164,12 +182,12 @@ if __name__ == "__main__":
         galaxy = central_galaxy(ra[n], dec[n], redshift[n], cat)
         
         #set up trimmed catalog (which restricts galaxies to be within redshift (and possibly radius) slice
-        galaxy.isolate_galaxy_region(vr_limit, radius_limit)
+        galaxy.isolate_galaxy_region(vr_limit, radius_limit[n])
 
         #self-explanatory -- calculates sum of stellar masses enclosed in circle about the central galaxy
         galaxy.sum_enclosed_mstar()
 
-        galaxy.calc_Sigma_Mstar(radius_limit)
+        galaxy.calc_Sigma_Mstar(radius_limit[n])
         all_Sigma_Mstar[n] = galaxy.density_Mstar
 
     
