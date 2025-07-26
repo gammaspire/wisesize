@@ -230,128 +230,140 @@ class central_galaxy():
             
         else:
             self.density_kSigma = -999
+
+            
+
+##########################################   
+#NEED for when importing code as a module!
+##########################################
+def compute_kNN_densities(vr_limit=500, radius_limit=100, k=5, use_vfs=False, use_radec=False, write=False):
+    """
+    Computes kNN densities for a galaxy catalog, either VFS or NED-LVS.
     
+    Parameters
+    ----------
+    vr_limit : int
+        Velocity range limit in km/s (only used if use_vfs is False).
+    radius_limit : float
+        Radius limit in Mpc for spatial trimming.
+    k : int
+        k in the k-nearest neighbor calculation.
+    use_vfs : bool
+        Whether to use the VFS catalog instead of NED-LVS.
+    use_radec : bool
+        If True, computes distances from RA/DEC (slower); if False, uses SG coordinates with KDTree.
+    write : bool
+        If True, will write the output back into nedlvs_parent FITS table.
+
+    Returns
+    -------
+    all_kNN : np.ndarray
+        Array of kNN surface densities.
+    """
+    print(f"Running kNN density calculation with k={k}, vr_limit={vr_limit}, radius_limit={radius_limit}")
+    import time
+    from astropy.table import Table
+    from scipy.spatial import KDTree
+    import numpy as np
+    import os
     
+    homedir = os.getenv("HOME")
     
-if __name__ == "__main__":
-    
-    if '-h' or '-help' in sys.argv:
-        print('-vr_limit [int in km/s; default is 500] -radius_limit [int in Mpc; default is 100 (no radius bounds)] -k [int; default is 5 (for fifth nearest neighbor)] -vfs [if included, will use VFS catalog and SGY bounds (from Castignani+22) in place of the vr_limit slice; otherwise, will default to NED-LVS catalog] -radec [will calculate great circle distances using RA-DEC coordinates; note this will be considerably slower than the default SG coordinates due to KDTrees only supporting linear distances] -write [will write array output to nedlvs_parent table]')
-    
-    if '-vr_limit' in sys.argv:
-        p = sys.argv.index('-vr_limit')
-        vr_limit = int(sys.argv[p+1])
-        print(f'Using vr_limit = {vr_limit} km/s')
-    else:
-        vr_limit = 500  #km/s
-        print('Using vr_limit = 500 km/s')
-    
-    if '-radius_limit' in sys.argv:
-        p = sys.argv.index('-radius_limit')
-        radius_limit = int(sys.argv[p+1])
-        print(f'Using radius_limit = {radius_limit} Mpc')
-    else:
-        radius_limit = 100.  #Mpc
-        print('Using radius_limit = 100 Mpc --> no limit!')
-    
-    if '-k' in sys.argv:
-        p = sys.argv.index('-k')
-        k = int(sys.argv[p+1])
-        print(f'Using k = {k}')
-    else:
-        k = 5
-        print(f'Using k = 5')
-    
-    if '-vfs' in sys.argv:
+    if use_vfs:
         phot_r = Table.read(homedir+'/Desktop/v2-20220820/vf_v2_r_photometry.fits')
-        M_r_flag = phot_r['M_r']<=-15.7
-        print('Applying absolute r-band magnitude completeness flag (M_r<=-15.7) to VFS...')
+        M_r_flag = phot_r['M_r'] <= -15.7
         virgo_env = Table.read(homedir+'/Desktop/v2-20220820/vf_v2_environment.fits')[M_r_flag]
         cat = Table.read(homedir+'/Desktop/virgowise_files/VF_WISESIZE_photSNR.fits')[M_r_flag]
-        print('Using SG Coordinates from VFS catalogs...')
-
+        print('Using VFS catalog with SG coordinates.')
     else:
         virgo_env = None
         cat_full = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
         
-        print('Applying mass completeness limit flag to catalog...')
         try:
             mstarflag = cat_full['Mstar_all_flag']
         except:
-            print('No mass completeness limit flag found! Ignoring.')
-            mstarflag = np.ones(len(cat_full),dtype=bool)
+            mstarflag = np.ones(len(cat_full), dtype=bool)
+            print('Mass completeness flag not found.')
         
-        print('Removing objects beyond the WISESize redshift and RA-DEC range...')
-        zflag = (cat_full['Z']>0.002) & (cat_full['Z']<0.025)
-        raflag = (cat_full['RA']>87) & (cat_full['RA']<300)
-        decflag = (cat_full['DEC']>-10) & (cat_full['DEC']<85)
-        
-        #applying all flags at once
-        cat = cat_full[(mstarflag) & (zflag) & (raflag) & (decflag)]
-        
-        print(f'Number of starting galaxies: {len(cat)}')
-        
+        zflag = (cat_full['Z'] > 0.002) & (cat_full['Z'] < 0.025)
+        raflag = (cat_full['RA'] > 87) & (cat_full['RA'] < 300)
+        decflag = (cat_full['DEC'] > -10) & (cat_full['DEC'] < 85)
+        cat = cat_full[mstarflag & zflag & raflag & decflag]
+        print(f'NED-LVS catalog selected with {len(cat)} galaxies after applying flags.')
+    
     all_kNN = np.zeros(len(cat))
     ra = cat['RA']
     dec = cat['DEC']
     redshift = cat['Z']
-    
-    if '-vfs' in sys.argv:
+
+    if use_vfs:
         sgx_arr = virgo_env['SGX']
         sgy_arr = virgo_env['SGY']
         sgz_arr = virgo_env['SGZ']
-        
-    elif '-radec' not in sys.argv:
-        #need to use SG coordinates to avoid problems with celestial sphere configuration and its effect on RA distances
-        #output arrays will have same length as ra, dec, redshift arrays
+    elif not use_radec:
         sgx_arr, sgy_arr, sgz_arr = RADEC_to_SG(ra, dec, redshift)
-        
-        #add columns to main table
         cat['sgx_arr'] = sgx_arr
         cat['sgy_arr'] = sgy_arr
         cat['sgz_arr'] = sgz_arr
-        
     else:
-        #assuming user wants RADEC distances, set SG coords to be None arrays
         sgx_arr = sgy_arr = sgz_arr = [None] * len(cat)
     
-    
-    coords = np.vstack((sgx_arr,sgz_arr)).T
+    coords = np.vstack((sgx_arr, sgz_arr)).T
+    tree = KDTree(coords) if not use_radec else None
     
     start_time = time.perf_counter()
     
-    #ignore tree if user wants to use RA-DEC distances
-    tree = KDTree(coords) if '-radec' not in sys.argv else None
-
     for n in range(len(cat)):
-        #define galaxy class object
         galaxy = central_galaxy(ra[n], dec[n], redshift[n], k, cat, sgy_arr[n], sgx_arr[n], sgz_arr[n])
-        
-        #compute kSigma using the tree if using supergalactic coordinates
-        if '-radec' not in sys.argv:
+        if not use_radec:
             galaxy.calc_kSigma_with_tree(tree, coords[n], vr_limit, virgo_env)
-            all_kNN[n] = galaxy.density_kSigma
-        
         else:
-            #set up trimmed catalog (which restricts galaxies to be within redshift (and possibly radius) slice
             galaxy.isolate_galaxy_region(vr_limit, radius_limit)
-            
-            #self-explanatory -- runs the function to calculated all projected distances relative to central galaxy
             galaxy.calc_projected_distances()
-            
             galaxy.calc_kSigma()
-            all_kNN[n] = galaxy.density_kSigma
+        all_kNN[n] = galaxy.density_kSigma
 
-    
-    #plot_kNN(k, cat['RA'], cat['DEC'], all_kNN)
-    print('# galaxies in input table without kSigma:',len(all_kNN[all_kNN==-999]))
-    
-    if '-write' in sys.argv:
+    print(f"# galaxies with no valid kNN: {(all_kNN == -999).sum()}")
+
+    if write and not use_vfs:
         save_to_table(cat_full, all_kNN, k, version=1)
+
+    print(f"Finished in {(time.perf_counter() - start_time)/60:.2f} minutes")
     
-    end_time = time.perf_counter()
+    return all_kNN
+            
+   
     
-    execution_time = end_time - start_time
-    
-    print(f'Execution Time: {(execution_time/60.):.2} minute(s)')
-    
+#######################################################################################################
+#this part ONLY RUNS if the code is run from a command line as opposed to if it is imported as a module
+#######################################################################################################    
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Compute kNN galaxy densities")
+    parser.add_argument("-vr_limit", type=int, default=500, help="Velocity range limit in km/s")
+    parser.add_argument("-radius_limit", type=float, default=100.0, help="Radius limit in Mpc")
+    parser.add_argument("-k", type=int, default=5, help="k-th nearest neighbor")
+    parser.add_argument("-vfs", action="store_true", help="Use the VFS catalog")
+    parser.add_argument("-radec", action="store_true", help="Use RA/DEC for distance instead of SG coordinates")
+    parser.add_argument("-write", action="store_true", help="Write results back into table")
+
+    args = parser.parse_args()
+
+    print("Running from command line with:")
+    print(f"  vr_limit      = {args.vr_limit}")
+    print(f"  radius_limit  = {args.radius_limit}")
+    print(f"  k             = {args.k}")
+    print(f"  use_vfs       = {args.vfs}")
+    print(f"  use_radec     = {args.radec}")
+    print(f"  write_results = {args.write}")
+
+    #bzzt. call function.
+    all_kNN = compute_kNN_densities(
+        vr_limit=args.vr_limit,
+        radius_limit=args.radius_limit,
+        k=args.k,
+        use_vfs=args.vfs,
+        use_radec=args.radec,
+        write=args.write
+    )
