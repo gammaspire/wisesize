@@ -146,12 +146,14 @@ def Sigma_Mstar_Ngal(vr_limit=1000, radius_limit=1.0):
     try:
         mstarflag = cat_full['Mstar_all_flag']
     except:
+        print('Mass completeness flag not found.')
         mstarflag = np.ones(len(cat_full), dtype=bool)
 
     zflag = (cat_full['Z'] > 0.002) & (cat_full['Z'] < 0.025)
     raflag = (cat_full['RA'] > 87.) & (cat_full['RA'] < 300.)
     decflag = (cat_full['DEC'] > -10.) & (cat_full['DEC'] < 85.)
-
+    
+    print(f'Calculating Sigma_M and Ngal for vr_limit = {vr_limit} and radius_limit = {radius_limit}')
     cat = cat_full[mstarflag & zflag & raflag & decflag]
     Mstar = Mstar_full[mstarflag & zflag & raflag & decflag]
 
@@ -185,6 +187,8 @@ def Sigma_Mstar_Ngal(vr_limit=1000, radius_limit=1.0):
         galaxy.sum_enclosed_ngal()
         all_ngal[n] = galaxy.ngal
         
+        print(f"Number of galaxies with no Sigma_M: {(all_Sigma_Mstar == -999).sum()}")
+        
     print(f"Finished in {(time.perf_counter() - start_time)/60:.2f} minutes")
 
     return all_Sigma_Mstar, all_ngal        
@@ -212,8 +216,6 @@ if __name__ == "__main__":
 
     # Run the core function to compute Sigma_Mstar and ngal arrays
     all_Sigma_Mstar, all_ngal = Sigma_Mstar_Ngal(vr_limit=args.vr_limit, radius_limit=args.radius_limit)
-
-    print(f"Number of galaxies with no Sigma_M: {(all_Sigma_Mstar == -999).sum()}")
 
     if args.write:
         from astropy.table import Table

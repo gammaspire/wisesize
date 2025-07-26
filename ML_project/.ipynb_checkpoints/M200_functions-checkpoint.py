@@ -113,20 +113,24 @@ def generate_SigmaM_variants(vr_limits, radius_limits):
         sys.exit()
     
     #initiate the lists!
-    features = []
-    names = []
+    features_SigmaM = []
+    names_SigmaM = []
+    features_Ngal = []
+    names_Ngal = []
     
     for n in range(len(vr_limits)):
         all_Sigma_Mstar, all_ngal = Sigma_Mstar_Ngal(vr_limit=vr_limits[n], radius_limit=radius_limits[n])
         
-        features.append(np.log10(all_Sigma_Mstar))  #all_Sigma_Mstar is the output of the above function :-)
-        features.append(all_ngal)   #all_ngal is the output of the above function :-)
+        features_SigmaM.append(np.log10(all_Sigma_Mstar))
+        features_Ngal.append(all_ngal)
         
-        names.append(f'Sigma_M{n}')
-        names.append(f'Sigma_ngal_{n}')
+        names_SigmaM.append(f'Sigma_M{n}')
+        names_Ngal.append(f'Sigma_ngal_{n}')
 
         
     #CALCULATING A FEW RATIOS...
+    vr_limits = np.asarray(vr_limits)
+    radius_limits = np.asarray(radius_limits)
     
     #find index at which 1000 km/s AND 1.0 Mpc
     ind1 = (vr_limits == 1000.) & (radius_limits == 1.0)
@@ -136,10 +140,17 @@ def generate_SigmaM_variants(vr_limits, radius_limits):
     
     #find index at which 1000 km/s AND 2.0 Mpc
     ind3 = (vr_limits == 1000.) & (radius_limits == 2.0)
+
     
-    ratio_ngal = features[ind1]/features[ind3]   # 1 Mpc vs 2 Mpc
-    ratio_Sigma_1 = features[ind1]/features[ind2]   # 1000 km/s vs 300 km/s @ 1 Mpc
-    ratio_Sigma_2 = features[ind1]/features[ind3]   # 1 Mpc vs 2 Mpc
+    # 1 Mpc vs 2 Mpc
+    ratio_ngal = np.asarray(features_Ngal)[ind1]/np.asarray(features_Ngal)[ind3] 
+    # 1000 km/s vs 300 km/s @ 1 Mpc
+    ratio_Sigma_1 = np.asarray(features_SigmaM)[ind1]/np.asarray(features_SigmaM)[ind2] 
+    # 1 Mpc vs 2 Mpc
+    ratio_Sigma_2 = np.asarray(features_SigmaM)[ind1]/np.asarray(features_SigmaM)[ind3]   
+    
+    features = features_SigmaM + features_Ngal
+    names = names_SigmaM + names_Ngal
     
     features.extend([ratio_ngal,ratio_Sigma_1,ratio_Sigma_2])
     names.extend(['ratio_ngal_1','ratio_SigmaM_1','ratio_SigmaM_2'])
@@ -190,14 +201,14 @@ def rowmatch_to_catalog(full_catalog, SigmaM_features, SigmaM_names, Sigmak_feat
     import os
     homedir=os.getenv("HOME")
     from astropy.table import Table
+    import numpy as np
     
     #redefining to a variable I used below. can't be bothered switching it out.
     cat_full = full_catalog
     
     #combine the features...
     features = SigmaM_features + Sigmak_features   #joining two lists
-    names = SigmaM_names+Sigmak_names  #joining two lists
-    
+    names = SigmaM_names + Sigmak_names  #joining two lists
     
     #create flags and row match the above arrays to the full catalog
     raflag = (cat_full['RA']>87) & (cat_full['RA']<300)
@@ -208,13 +219,24 @@ def rowmatch_to_catalog(full_catalog, SigmaM_features, SigmaM_names, Sigmak_feat
     #these are ALL flags applied to the input cat table for Sigma_*
     flags = (mstarflag) & (zflag) & (raflag) & (decflag)
     
-    for n in range(len(features)):
-        template = np.full(len(cat_full), -999.0)
-        template[flags] = features[n]
-        features[n] = template
     
+    #create placeholder for row-matched features (helps avoid memory troubles!!)
+    matched_features = []
+    
+    for n in range(len(features)):
+                
+        template = np.full(len(cat_full), -999.0)
+        
+        try:
+            template[flags] = features[n]
+        except:
+            #in case the dimensions are wonky...e.g., (1,len(features[n]), as is the case with the ratio arrays
+            template[flags] = np.asarray(features[n]).ravel()
+
+        matched_features.append(template)
+        
     #add these Sigma_* columns to the full catalog
-    cat_full.add_columns(features,
+    cat_full.add_columns(matched_features,
                           names=names)
     
     #heee go.
