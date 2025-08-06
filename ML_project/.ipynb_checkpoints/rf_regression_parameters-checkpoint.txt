@@ -1,0 +1,37 @@
+df_path                           /Desktop/ML_features.csv   #path to pandas dataframe (.csv), if any, with features+classes
+
+feature_path_SigmaM               /Desktop/SigmaMnames.npy   #path to numpy file containing all Sigma_M feature column names
+feature_path_Sigmak               /Desktop/Sigmaknames.npy   #see above; for Sigma_k column names
+
+n_trees                           200                   #Number of decision trees for creating the random forest model.
+
+max_depth                         15                    #hyperparameter for random trees model; governs max number of "splits"
+                                                        #a decision tree can make
+
+test_size                         0.3                   #Defines the fraction of the sample the model will use as test data
+
+
+logM200_threshold                 11.5                  #log(M200) regression 'threshold', determines value above which the
+                                                        #model will flag galaxies for test/train data; 0 for "no threshold"
+
+
+correlation_threshold             1                 #Correlation threshold (for PCA).
+
+use_pca                           0                 #Use PCA to reduce feature dimensionality. 0 for False, 1 for True
+
+
+use_optimal_features              1                 #Iterate over model to find optimal features set. 0 for False, 1 for True
+
+optimal_features_list            []                #optimal features
+                                                   #to avoid running the use_optimal_features script, copy+paste your output list
+                                                   #of optimal features here. otherwise, script will re-generate the list
+                                                   #be sure to use [] if the list is empty! be sure features are comma-separated!
+                                                   #EXAMPLE: [Sigma_M4,Sigma_M5,ratio_SigmaM_1,Sigma_ngal_2]
+
+
+threshold_width                   0.90                #68% confidence interval width threshold at or above which the ML's 
+                                                    #predictive power is unreliable (68% CI -- value is within the shaded
+                                                    #width 68% of the time). units are dex.
+
+bin_width                         0.4              #predicted log(M200) bin size within which distribution of y_true 
+                                                    #is evaluated. units are dex.

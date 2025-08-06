@@ -1,0 +1,18 @@
+df_path                      /Desktop/ML_features.csv   #path to pandas dataframe (.csv), if any, with features+classes
+feature_path_SigmaM          /Desktop/SigmaMnames.npy   #path to numpy file containing all Sigma_M feature column names
+feature_path_Sigmak          /Desktop/Sigmaknames.npy   #see above; for Sigma_k column names
+
+max_depth                         10                    #Some hyperparameter for random trees model.
+
+n_trees                           200                   #Number of decision trees for creating the random forest model
+
+test_size                         0.3                   #Defines the fraction of the sample the model will use as test data
+
+logM200_threshold                 12.5                  #log(M200) regression 'threshold', determines value above which 
+                                                        #the model will flag galaxies for test/train data
+                                                        
+correlation_threshold             0.90                  #Correlation threshold (for PCA)
+
+use_pca                           True                  #Use PCA to reduce feature dimensionality
+
+use_optimal_features              False                 #Iterate over model to find optimal features set
