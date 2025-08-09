@@ -17,22 +17,32 @@ from universal_functions import *
 def plot_Sigma_Mstar(all_RA, all_DEC, all_Sigma_Mstar):
 
     #define "good" flag, which filters out all instances where galaxies did not have a Sigma_Mstar
-    #given our isolation constraints. this, however, should not ever be the case.
+    #given our isolation constraints. this, however, should not ever be the case unless galaxies are along edge of footprint
     good_flag = (all_Sigma_Mstar!=-999)
     
     fig = figure.Figure(figsize=(14,6))
     ax = fig.add_subplot()
         
-    im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=np.log10(all_Sigma_Mstar[good_flag]), cmap='viridis', alpha=0.5, s=5, vmin=-1, vmax=1.5)
+    im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=np.log10(all_Sigma_Mstar[good_flag]), cmap='viridis', alpha=0.3, s=5)
+    #also plot galaxies omitted from Sigma_M calculations due to edge effects
+    ax.scatter(all_RA[~good_flag], all_DEC[~good_flag], alpha=0.5, color='crimson',s=3,label='Removed (Edge Effects)')
     ax.invert_xaxis()
     ax.set_xlabel('RA [deg]',fontsize=14)
     ax.set_ylabel('DEC [deg]',fontsize=14)
+    
+    ax.axhline(-10,alpha=0.2,color='black')
+    ax.axhline(85,alpha=0.2,color='black')
+    
+    ax.axvline(87,alpha=0.2,color='black')
+    ax.axvline(300,alpha=0.2,color='black')
     
     ax.tick_params(labelsize=14)
     
     cb = fig.colorbar(im)
     cb.ax.tick_params(labelsize=14)
     cb.set_label(fr'$\log(\Sigma_{{M_*}}$ / [M$_{{*}}$ Mpc$^{{-2}}$])', fontsize=14)
+    
+    ax.legend(fontsize=12)
     
     fig.savefig(homedir+f'/Desktop/Sigma_Mstar_plot.png', dpi=100, bbox_inches='tight', pad_inches=0.2)
 
@@ -80,7 +90,38 @@ class central_galaxy():
         self.redshift = redshift
         
         self.cat = cat
+     
+    #eliminate edge effects - flag galaxies which may have biased Sigma_M and Ngal due to their radii extending beyond the limits
+    #of the survey area
+    def check_galaxy_buffer(self, radius_limit):
         
+        #find inner ra and dec buffer zones
+        #I need to convert the radius limit to degrees, to start. 
+        #note this will differ depending on redshift (AND declination...yay great circle distances).
+        radius_limit_degrees = Mpc_to_deg(radius_limit, self.redshift)
+
+        #define the 'buffer zones' and the flags corresponding to whether the galaxy is within them
+        
+        #left vertical
+        inner_ra_one = 87. + radius_limit_degrees
+        buffer_zone_one = (self.ra<=inner_ra_one) & (self.ra>=87.)
+        
+        #right vertical
+        inner_ra_two = 300. - radius_limit_degrees
+        buffer_zone_two = (self.ra>=inner_ra_two) & (self.ra<=300.)
+        
+        #top horizontal
+        inner_dec_one = 85. - radius_limit_degrees
+        buffer_zone_three = (self.dec>=inner_dec_one) & (self.dec<=85.)
+        
+        #bottom horizontal
+        inner_dec_two = -10. + radius_limit_degrees
+        buffer_zone_four = (self.dec<=inner_dec_two) & (self.dec>=-10.)
+        
+        #return True or False depending on whether galaxy is within any of the buffer zones
+        return (buffer_zone_one | buffer_zone_two | buffer_zone_three | buffer_zone_four)
+    
+    
     def isolate_galaxy_region(self, vr_limit, radius_limit):
         
         #use redshifts to calculate width of "slice"
@@ -165,7 +206,7 @@ def Sigma_Mstar_Ngal(vr_limit=1000, radius_limit=1.0):
     else:
         radius_limit = np.full(len(cat), float(radius_limit))
 
-    radius_limit[radius_limit == -99.] = 0.3  # fallback default
+    radius_limit[radius_limit == -99.] = 0.3  #fallback default for R200
 
     cat['Mstar'] = Mstar
 
@@ -180,15 +221,19 @@ def Sigma_Mstar_Ngal(vr_limit=1000, radius_limit=1.0):
     
     for n in range(len(cat)):
         galaxy = central_galaxy(ra[n], dec[n], redshift[n], cat)
-        galaxy.isolate_galaxy_region(vr_limit, radius_limit[n])
-        galaxy.sum_enclosed_mstar()
-        galaxy.calc_Sigma_Mstar(radius_limit[n])
-        all_Sigma_Mstar[n] = galaxy.density_Mstar
-        galaxy.sum_enclosed_ngal()
-        all_ngal[n] = galaxy.ngal
+        if galaxy.check_galaxy_buffer(radius_limit[n]):
+            #assign -999 to ngal, Sigma_Mstar for that galaxy
+            all_Sigma_Mstar[n] = -999
+            all_ngal[n] = -999
+        else:
+            galaxy.isolate_galaxy_region(vr_limit, radius_limit[n])
+            galaxy.sum_enclosed_mstar()
+            galaxy.calc_Sigma_Mstar(radius_limit[n])
+            all_Sigma_Mstar[n] = galaxy.density_Mstar
+            galaxy.sum_enclosed_ngal()
+            all_ngal[n] = galaxy.ngal
         
-        print(f"Number of galaxies with no Sigma_M: {(all_Sigma_Mstar == -999).sum()}")
-        
+    print(f"Number of galaxies with no Sigma_M: {(all_Sigma_Mstar == -999).sum()}")
     print(f"Finished in {(time.perf_counter() - start_time)/60:.2f} minutes")
 
     return all_Sigma_Mstar, all_ngal        
@@ -214,7 +259,7 @@ if __name__ == "__main__":
     print(f"  radius_limit = {args.radius_limit}")
     print(f"  write        = {args.write}")
 
-    # Run the core function to compute Sigma_Mstar and ngal arrays
+    #compute Sigma_Mstar and ngal arrays
     all_Sigma_Mstar, all_ngal = Sigma_Mstar_Ngal(vr_limit=args.vr_limit, radius_limit=args.radius_limit)
 
     if args.write:

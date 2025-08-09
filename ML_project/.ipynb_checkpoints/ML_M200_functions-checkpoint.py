@@ -316,16 +316,22 @@ def generate_SigmaM_variants(vr_limits, radius_limits):
     
     # 1 Mpc vs 2 Mpc [1000 km/s]
     ratio_ngal_1 = np.asarray(features_logNgal)[ind1] - np.asarray(features_logNgal)[ind3] 
-    # 1000 km/s vs 300 km/s [1 Mpc]
-    ratio_Sigma_1 = np.asarray(features_SigmaM)[ind1] - np.asarray(features_SigmaM)[ind2] 
-    # 1 Mpc vs 2 Mpc [1000 km/s]
-    ratio_Sigma_2 = np.asarray(features_SigmaM)[ind1] - np.asarray(features_SigmaM)[ind3]   
-    # 0.5 Mpc vs 0.25 Mpc [1000 km/s]
-    ratio_Sigma_3 = np.asarray(features_SigmaM)[ind4] - np.asarray(features_SigmaM)[ind5]
-    # 1.0 Mpc vs 0.5 Mpc [1000 km/s]
-    ratio_Sigma_4 = np.asarray(features_SigmaM)[ind1] - np.asarray(features_SigmaM)[ind4]
+    
     #1.0 Mpc vs 0.5 Mpc [1000 km/s]
     ratio_ngal_2 = np.asarray(features_logNgal)[ind1] - np.asarray(features_logNgal)[ind4]
+    
+    # 1000 km/s vs 300 km/s [1 Mpc]
+    ratio_Sigma_1 = np.asarray(features_SigmaM)[ind1] - np.asarray(features_SigmaM)[ind2] 
+    
+    # 1 Mpc vs 2 Mpc [1000 km/s]
+    ratio_Sigma_2 = np.asarray(features_SigmaM)[ind1] - np.asarray(features_SigmaM)[ind3]   
+    
+    # 0.5 Mpc vs 0.25 Mpc [1000 km/s]
+    ratio_Sigma_3 = np.asarray(features_SigmaM)[ind4] - np.asarray(features_SigmaM)[ind5]
+    
+    # 1.0 Mpc vs 0.5 Mpc [1000 km/s]
+    ratio_Sigma_4 = np.asarray(features_SigmaM)[ind1] - np.asarray(features_SigmaM)[ind4]
+    
     #0.5 Mpc vs. 3.0 Mpc [1000 km/s]
     ratio_Sigma_5 = np.asarray(features_SigmaM)[ind4] - np.asarray(features_SigmaM)[ind6]
     

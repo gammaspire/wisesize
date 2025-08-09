@@ -103,7 +103,6 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
         min_bin_count = 10
         
         print("Counts per bin:", stats['count'].values)
-        #print("CI widths per bin:", stats['ci_width'].values)
 
         stats_filtered = stats[stats['count'] >= min_bin_count]
         bin_centers_filtered = np.array(bin_centers)[stats['count'] >= min_bin_count]
@@ -130,9 +129,13 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
             print("No reliable bins found.")
             
 
-        ax.plot(bin_centers_filtered, stats_filtered['median'], color='black', lw=2, label='Median y_test per y_pred bin')
-        ax.fill_between(bin_centers_filtered, stats_filtered['low'], stats_filtered['high'], 
-                        color='gray', alpha=0.3, label=r'1$\sigma$')
+        #ax.fill_between(bin_centers_filtered, stats_filtered['low'], stats_filtered['high'],
+        #        color='gray', alpha=0.3, label=r'1$\sigma$ range of y_true')
+        ax.fill_betweenx(y=bin_centers_filtered, x1=stats_filtered['low'], x2=stats_filtered['high'], 
+                         color='gray', alpha=0.3, label=r'1$\sigma$ CI')
+
+        ax.plot(stats_filtered['median'], bin_centers_filtered, color='black', lw=2, label='Median y_true per y_pred bin')
+
     
     ax.legend()
     
@@ -140,7 +143,7 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
     plt.show()
 
 
-def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=False, optimal_features_list=None
+def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=False,
               threshold=0.90,logM200_threshold=0, regression_plot=True, importances_plot=True,
               test_size=0.3, n_trees=200, max_depth=10, threshold_width=0.5, bin_width=0.1):
     '''
@@ -156,9 +159,8 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         Whether to reduce features using PCA with specified correlation threshold.
     use_optimal_features : bool, default=False
         If True, selects optimal feature subset via repeated cross-validation.
-    optimal_features_list : list, default=None
-        If use_optimal_features=True, will use the list of features given in params.txt if not empty. 
-        This list should comprise the output optimal features when the user previous ran with use_optimal_features=True. 
+    force_features_list : list, default=None
+        If not None, will use the desired features given in params.txt for model fitting.
     threshold : float, default=0.90
         Correlation threshold used for PCA feature reduction (if use_pca is True).
     logM200_threshold : float
@@ -202,7 +204,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         except:
             print('No input feature list and .npy files not found. Exiting.')
             sys.exit()
-            
+        
     df_out = df.copy()
     if use_pca:
         df_out, feature_list = get_pca_features(df, feature_list, threshold)
@@ -225,11 +227,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     df_group = df_group.dropna()
     
     #define your model of choice
-    model = RandomForestRegressor(n_estimators=n_trees, max_depth=max_depth, random_state=42)
-    
-    X=df_group[feature_list]
-    y=df_group['group_M200']
-    
+    model = RandomForestRegressor(n_estimators=n_trees, max_depth=max_depth, random_state=42)    
     
     #features...some hodgepodge of potentially relevant properties.
     X=df_group[feature_list][df_group['group_M200']>logM200_threshold]
@@ -248,7 +246,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         
         else:
             selected_features = optimal_features_list
-            
+
         #predictors...some hodgepodge of potentially relevant properties.
         X=df_group[selected_features][df_group['group_M200']>logM200_threshold]
         
@@ -268,7 +266,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     r2 = r2_score(y_test, y_pred)
 
     print(f"MSE: {mse:.3f}")
-    print(f"R²: {r2:.3f}")
+    print(f"R²: {r2:.3f} (R: {np.sqrt(r2):.3f})")
     
     
     #ploots
@@ -311,31 +309,34 @@ if __name__ == "__main__":
     except:
         print('df not found. please generate the .csv file first before running.')
         sys.exit()
-
-    try:
-        SigmaM_names = np.load(homedir+param_dict['feature_path_SigmaM'], allow_pickle=True).tolist()
-        Sigmak_names = np.load(homedir+param_dict['feature_path_Sigmak'], allow_pickle=True).tolist()
-        feature_names = SigmaM_names+Sigmak_names
-    except:
-        print('one or more feature files not found. please generate the .npy files first before running.')
-        sys.exit()  
     
-
-    optimal_features_list = param_dict['optimal_features_list']
-    if len(optimal_features_list)<3:   #if empty bracket, generate new set of optimal features
-        print('No optimal features list found in the parameters .txt file; defaulting to running feature optimization!')
+    #pull feature names from param_dict. might be [] (empty list), and if so default to reading from .npy files.
+    feature_names = param_dict['force_features_list']
+        
+    if len(feature_names)<3:   #if empty bracket, pull full set of features names from .npy files
+        print('No force_features_list found in the parameters .txt file!')
+        print('Searching for SigmaM and Sigmak .npy files...')
+        
+        try:
+            SigmaM_names = np.load(homedir+param_dict['feature_path_SigmaM'], allow_pickle=True).tolist()
+            Sigmak_names = np.load(homedir+param_dict['feature_path_Sigmak'], allow_pickle=True).tolist()
+            feature_names = SigmaM_names+Sigmak_names
+            print('Success!')
+        except:
+            print('Bzzt. One or more feature files not found. Please generate the .npy files first before running.')
+            sys.exit()  
+    
     else:
-        #okay...parse string to isolate ALL optimal features
+        #okay...parse string to isolate the features
         #remove brackets, convert to list using ',' delimiter
-        optimal_features_list=optimal_features_list.replace('[','')
-        optimal_features_list=optimal_features_list.replace(']','')
-        optimal_features_list=optimal_features_list.replace(' ','')   #also remove any stray spaces
-        optimal_features_list=optimal_features_list.split(',')
-
+        feature_names=feature_names.replace('[','')
+        feature_names=feature_names.replace(']','')
+        feature_names=feature_names.replace(' ','')   #also remove any stray spaces
+        feature_names=feature_names.replace("'","")   #...and any single quotation marks
+        feature_names=feature_names.split(',')
     
     RFR_model(df=df, feature_list=feature_names, use_pca=bool(int(param_dict['use_pca'])), 
               use_optimal_features=bool(int(param_dict['use_optimal_features'])), 
-              optimal_features_list=optimal_features_list
               threshold=float(param_dict['correlation_threshold']), 
               logM200_threshold=float(param_dict['logM200_threshold']), test_size=float(param_dict['test_size']), 
               n_trees=int(param_dict['n_trees']), max_depth=int(param_dict['max_depth']), 

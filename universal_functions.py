@@ -129,7 +129,6 @@ def RADECZ_to_dist_all(RA1, DEC1, Z1, RA_array, DEC_array, Z_array):
 
 
 
-
 ###CONVERT CELESTIAL SPHERE 'GREAT CIRCLE' DISTANCES TO MPC###
 #input: radial distance, redshift of CENTRAL galaxy (we flatten onto a spherical surface with a radius of the
 #central galaxy's redshift)
