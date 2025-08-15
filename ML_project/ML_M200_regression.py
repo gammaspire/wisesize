@@ -5,7 +5,9 @@ RandomForestRegression script for generating ML models to predict M200
 #this will not be code to import, so I am free to use name...main, etc.
 
 from ML_M200_functions import *
-from matplotlib import pyplot as plt
+
+import argparse
+from rich import print
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
@@ -20,7 +22,7 @@ import os
 homedir=os.getenv('HOME')
 
 
-def confidence_intervals(y_test, y_pred, ngal, bin_width=0.1):
+def confidence_intervals(y_test, y_pred, ngal=None, bin_width=0.1):
     
     #y_pred=y_pred[ngal>3]
     #y_test=y_test[ngal>3]
@@ -36,7 +38,7 @@ def confidence_intervals(y_test, y_pred, ngal, bin_width=0.1):
     df['bin'] = pd.cut(df['y_pred'], bins=bins)
 
     #group by bin, compute the median and 95% confidence interval of y_test (the true log(M200))
-    #hoq to calculate percentiles: begin at 50; split CI in half (47.5), 50 +/- 47.5 are the percentiles (97.5 for high and 2.5 for low)
+    #how to calculate percentiles: begin at 50; split CI in half (47.5), 50 +/- 47.5 are the percentiles (97.5 for high and 2.5 for low)
     #count is the number of samples in the bin
     #note: observed=False is needed to retain intended functionality in case pandas is updated
     stats = df.groupby('bin', observed=False)['y_true'].agg([
@@ -65,7 +67,7 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
     OUTPUT: figure of y_pred vs. y_true, with a 1-to-1 line plotted for ease of comparison
     Note: BE SURE NGAL IS ROW-MATCHED WITH Y_TEST AND Y_PRED!
     '''
-    
+    from matplotlib import pyplot as plt
     from matplotlib.colors import ListedColormap, BoundaryNorm
     
     #y_pred=y_pred[ngal>3]
@@ -195,11 +197,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
             
     if feature_list is None:
         try:
-            SigmaM_names = np.load(homedir+'/Desktop/SigmaMnames.npy', allow_pickle=True).tolist()
-            Sigmak_names = np.load(homedir+'/Desktop/Sigmaknames.npy', allow_pickle=True).tolist()
-            
-            #prepare the FEATURE NAMES LIST!
-            feature_list = SigmaM_names+Sigmak_names
+            feature_list = read_features()
             
         except:
             print('No input feature list and .npy files not found. Exiting.')
@@ -210,7 +208,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         df_out, feature_list = get_pca_features(df, feature_list, threshold)
         
     #add stellar mass to feature list; remove whatever 0.1 Mpc malarkey I thought was appropriate
-    feature_list=feature_list+['Mstar']
+    #feature_list=feature_list+['Mstar']
     
     #note: using halo mass, so must isolate Tempel+2017 group galaxies (which actually have a halo mass)
     df_group = df_out.copy()[df_out['tempel2017_groupIDs']>0]
@@ -276,12 +274,35 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         plot_regression(y_test, y_pred, ngal_test, bin_centers, stats, threshold_width=threshold_width)
     
     if importances_plot:
-        plot_importances(X, model)
-                
+        plot_importances(X, model) 
         
+    return X, model, y_test, y_pred
+        
+
+def read_features():
+    SigmaM_names = np.load(homedir+'/Desktop/SigmaMnames.npy', allow_pickle=True).tolist()
+    Sigmak_names = np.load(homedir+'/Desktop/Sigmaknames.npy', allow_pickle=True).tolist()
+            
+    #prepare the FEATURE NAMES LIST!
+    feature_list = SigmaM_names+Sigmak_names
+    
+    return feature_list
+        
+def read_params(params_path):
+    #create dictionary with keyword and values from param textfile...
+    param_dict = {}
+    with open(params_path) as f:
+        for line in f:
+            try:
+                key = line.split()[0]
+                val = line.split()[1]
+                param_dict[key] = val
+            except:
+                continue
+    return param_dict
+    
 if __name__ == "__main__":
     
-    import argparse
     parser = argparse.ArgumentParser(description="Create ML model to predict log(M200) or environment class.")
     
     default_params_path = homedir+'/github/wisesize/ML_project/rf_regression_parameters.txt'
@@ -293,15 +314,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     #create dictionary with keyword and values from param textfile...
-    param_dict = {}
-    with open(args.params) as f:
-        for line in f:
-            try:
-                key = line.split()[0]
-                val = line.split()[1]
-                param_dict[key] = val
-            except:
-                continue
+    param_dict = read_params(args.params)
     
     df_path = param_dict['df_path']
     try:
@@ -318,9 +331,7 @@ if __name__ == "__main__":
         print('Searching for SigmaM and Sigmak .npy files...')
         
         try:
-            SigmaM_names = np.load(homedir+param_dict['feature_path_SigmaM'], allow_pickle=True).tolist()
-            Sigmak_names = np.load(homedir+param_dict['feature_path_Sigmak'], allow_pickle=True).tolist()
-            feature_names = SigmaM_names+Sigmak_names
+            feature_names = read_features()
             print('Success!')
         except:
             print('Bzzt. One or more feature files not found. Please generate the .npy files first before running.')
@@ -335,17 +346,10 @@ if __name__ == "__main__":
         feature_names=feature_names.replace("'","")   #...and any single quotation marks
         feature_names=feature_names.split(',')
     
-    RFR_model(df=df, feature_list=feature_names, use_pca=bool(int(param_dict['use_pca'])), 
+    _ = RFR_model(df=df, feature_list=feature_names, use_pca=bool(int(param_dict['use_pca'])), 
               use_optimal_features=bool(int(param_dict['use_optimal_features'])), 
               threshold=float(param_dict['correlation_threshold']), 
               logM200_threshold=float(param_dict['logM200_threshold']), test_size=float(param_dict['test_size']), 
               n_trees=int(param_dict['n_trees']), max_depth=int(param_dict['max_depth']), 
               bin_width=float(param_dict['bin_width']), threshold_width=float(param_dict['threshold_width']),
               regression_plot=True, importances_plot=True)
-    
-    
-    
-    
-    
-    
-    
