@@ -54,7 +54,8 @@ def run_ML_regression(df, feature_names, param_dict):
     #just a basic little with no PCA features, no optimally-chosen features, no plots, and the parameters given in params.txt
     _, model, y_test, y_pred = RFR_model(df=df, feature_list=feature_names, use_pca=False, use_optimal_features=False, 
                                                   logM200_threshold=float(param_dict['logM200_threshold']), 
-                                                  test_size=float(param_dict['test_size']), n_trees=int(param_dict['n_trees']), 
+                                                  test_size=float(param_dict['test_size']), 
+                                                  n_trees=int(param_dict['n_trees']), 
                                                   max_depth=int(param_dict['max_depth']), bin_width=bin_width, 
                                                   threshold_width=float(param_dict['threshold_width']),
                                                   regression_plot=False, importances_plot=False)
@@ -70,7 +71,7 @@ def run_ML_regression(df, feature_names, param_dict):
     medians = stats['median'].values
     
     #return the lists
-    return medians, CI_widths, model
+    return medians, CI_widths, model, bin_centers
 
 
 def isolate_important_features(X_features, model, N_output):
@@ -109,7 +110,7 @@ def isolate_important_features(X_features, model, N_output):
     return features_trim
 
 
-def plot_CI(median_list, CI_width_list, N_outputs_all):
+def plot_CI(median_list, CI_width_list, y_pred_bin_centers_list, N_outputs_all):
     
     from matplotlib.ticker import MultipleLocator
         
@@ -118,21 +119,19 @@ def plot_CI(median_list, CI_width_list, N_outputs_all):
     ax1, ax2 = axes.flat
     
     #I want the ticks to be integers with a step size of 1
-    ax1.xaxis.set_major_locator(MultipleLocator(1))
-    ax2.xaxis.set_major_locator(MultipleLocator(1))
+    #ax1.xaxis.set_major_locator(MultipleLocator(1))
+    #ax2.xaxis.set_major_locator(MultipleLocator(1))
     
     for i, N in enumerate(N_outputs_all):
-        
-        bin_numbers = np.arange(len(median_list[i]))+1
-        
-        ax1.plot(bin_numbers, median_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
-        ax2.plot(bin_numbers, CI_width_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
+   
+        ax1.plot(y_pred_bin_centers_list[i], median_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
+        ax2.plot(y_pred_bin_centers_list[i], CI_width_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
         
     ax1.set_title('Median "True" log(M200) per "Pred" log(M200) Bin', fontsize=12)
     ax2.set_title('68% CI Widths [High-Low] Per Bin', fontsize=12)
     
-    ax1.set_xlabel(f'Predicted log(M200) Bin Number (Step Size = 0.3)',fontsize=12)
-    ax2.set_xlabel(f'Predicted log(M200) Bin Number (Step Size = 0.3)',fontsize=12)
+    ax1.set_xlabel(f'Predicted log(M200)',fontsize=12)
+    ax2.set_xlabel(f'Predicted log(M200)',fontsize=12)
     
     ax1.set_ylabel("Median 'True' log(M200)")
     ax2.set_ylabel("68% CI Width")
@@ -160,6 +159,7 @@ if __name__ == "__main__":
     #will also need...lists of lists for the medians and widths!
     medians_list = []
     CI_widths_list = []
+    ypred_bin_centers_list = []   #need also for plotting purposes
     
     #begin will the full list of features...
     X_features = df[full_feature_list]
@@ -173,13 +173,14 @@ if __name__ == "__main__":
         
         feature_names = isolate_important_features(X_features, model, N_output)
         
-        medians, CI_widths, model = run_ML_regression(df, feature_names, param_dict)
-        
+        #need y_pred bin centers for the plot. :-)
+        medians, CI_widths, model, bin_centers = run_ML_regression(df, feature_names, param_dict)
+                
         medians_list.append(medians)
-        
         CI_widths_list.append(CI_widths)
+        ypred_bin_centers_list.append(bin_centers)
         
         X_features = df[feature_names]
         
     #and now, the plot:
-    plot_CI(medians_list, CI_widths_list, N_outputs_all)
+    plot_CI(medians_list, CI_widths_list, ypred_bin_centers_list, N_outputs_all)

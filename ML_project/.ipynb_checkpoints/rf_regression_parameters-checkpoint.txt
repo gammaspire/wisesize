@@ -11,7 +11,6 @@ max_depth                         15                    #hyperparameter for rand
 test_size                         0.20                   #Defines the fraction of the sample the model will use as test data
 
 
-
 force_features_list               ['log_Sigma_M1','log_Sigma_M2','log_Sigma_M7','log_Sigma_M8','log_Sigma_M17','ratio_SigmaM_1']
                                                    
                                                    #force the model to use the features given in this list!
@@ -20,8 +19,6 @@ force_features_list               ['log_Sigma_M1','log_Sigma_M2','log_Sigma_M7',
                                                    #use [] (empty list) to default to all features! 
                                                    #features must be comma-separated, NO SPACES!
                                                    #EXAMPLE: [Sigma_M4,Sigma_M5,ratio_SigmaM_1,Sigma_ngal_2]
-
-
 
 
 logM200_threshold                 11.5                  #log(M200) regression 'threshold', determines value above which the
@@ -35,9 +32,18 @@ use_pca                           0                 #Use PCA to reduce feature d
 use_optimal_features              0                 #Iterate over model to find optimal features set. 0 for False, 1 for True
 
 
-threshold_width                   0.70                #68% confidence interval width threshold at or above which the ML's 
+threshold_width                   0.70              #68% confidence interval width threshold at or above which the ML's 
                                                     #predictive power is unreliable (68% CI -- value is within the shaded
                                                     #width 68% of the time). units are dex.
 
 bin_width                         0.30              #predicted log(M200) bin size within which distribution of y_true 
                                                     #is evaluated. units are dex.
+  
+min_bin_count                     10                #the minumum number of items per bin under which the bin will 
+                                                    #be discarded  
+  
+method                           rolling            #dictates whether confidence intervals are based on 'fixed' bin widths
+                                                    #or a 'running' with window size +/- bin_width/2 about the central galaxy
+                                                    #for 'running', the bins are centered on every galaxy.
+                                                    #fixed --> for equal-width bins (pd.cut), 
+                                                    #rolling --> for computing pointwise/rolling CIs along y_pred

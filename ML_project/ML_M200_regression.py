@@ -22,48 +22,99 @@ import os
 homedir=os.getenv('HOME')
 
 
-def confidence_intervals(y_test, y_pred, ngal=None, bin_width=0.1):
-    
-    #y_pred=y_pred[ngal>3]
-    #y_test=y_test[ngal>3]
-    #ngal=ngal[ngal>3]
-    
-    #define bins - these bins will pool the data for which we calculate confidence intervals
-    bins = np.arange(y_pred.min(), y_pred.max() + bin_width, bin_width)
+def confidence_intervals(y_test, y_pred, ngal=None, bin_width=0.3, method='fixed'):
+    '''
+    INPUTS:
+        y_test: true values
+        y_pred: predicted values
+        ngal: optional mask array for number of galaxies (filters data if provided)
+        bin_width: width of bins for fixed method
+        method: 'fixed' for equal-width bins (pd.cut), 
+                'running' for bins centered on each galaxy (sliding window)
+    '''
     
     #define new dataframe using y_test and y_pred
     df = pd.DataFrame({'y_true': y_test, 'y_pred': y_pred})
     
-    #cut the predcited log(M200) into the bins (intervals of width bin_width)
-    df['bin'] = pd.cut(df['y_pred'], bins=bins)
+    if method == 'fixed':
+        #define bins - these bins will pool the data for which we calculate confidence intervals
+        bins = np.arange(y_pred.min(), y_pred.max() + bin_width, bin_width)
+        
+        #cut the predicted log(M200) into the bins (intervals of width bin_width)
+        df['bin'] = pd.cut(df['y_pred'], bins=bins)
+        
+        #group by bin, compute the median and 95% confidence interval of y_test (the true log(M200))
+        #how to calculate percentiles: begin at 50; split CI in half (47.5), 50 +/- 47.5 are the percentiles 
+        #(97.5 for high and 2.5 for low)
+        #count is the number of samples in the bin
+        #note: observed=False is needed to retain intended functionality in case pandas is updated
+        stats = df.groupby('bin', observed=False)['y_true'].agg([
+            ('median', 'median'),
+            ('low', lambda x: np.percentile(x, 16) if len(x) > 0 else np.nan),   #for 95th percentile, 2.5; ignores bins with 0
+            ('high', lambda x: np.percentile(x, 84) if len(x) > 0 else np.nan),  #for 95th percentile, 97.5; ignores bins with 0
+            ('count', 'count')])    
 
-    #group by bin, compute the median and 95% confidence interval of y_test (the true log(M200))
-    #how to calculate percentiles: begin at 50; split CI in half (47.5), 50 +/- 47.5 are the percentiles (97.5 for high and 2.5 for low)
-    #count is the number of samples in the bin
-    #note: observed=False is needed to retain intended functionality in case pandas is updated
-    stats = df.groupby('bin', observed=False)['y_true'].agg([
-        ('median', 'median'),
-        ('low', lambda x: np.percentile(x, 16) if len(x) > 0 else np.nan),      #for 95th percentile, 2.5; ignores bins with 0
-        ('high', lambda x: np.percentile(x, 84) if len(x) > 0 else np.nan),    #for 95th percentile, 97.5; ignores bins with 0
-        ('count', 'count')])    
+        #get bin centers, just in case
+        bin_centers = [interval.mid for interval in stats.index]
 
-    #get bin centers, just in case
-    bin_centers = [interval.mid for interval in stats.index]
+        #include the width of each CI bin. helpful for diagnosing where the width is small vs. large vs. whatever
+        stats['ci_width'] = stats['high'] - stats['low']
+
+        #drop empty/NaN rows
+        stats_clean = stats.dropna(subset=['median'])    
+        bin_centers = [interval.mid for interval in stats_clean.index]   #middle of distribution...
+
+        #stats contains the median 
+        return bin_centers, stats_clean
     
-    #include the width of each CI bin. helpful for diagnosing where the width is small vs. large vs. whatever
-    stats['ci_width'] = stats['high'] - stats['low']
-    
-    #drop empty/NaN rows
-    stats_clean = stats.dropna(subset=['median'])    
-    bin_centers = [interval.mid for interval in stats_clean.index]   #middle of distribution...
-    
-    #stats contains the median 
-    return bin_centers, stats_clean
+    elif method == 'rolling':
 
+        #initialize some empty lists
+        #'sliding window bins'
+        bin_centers, medians, lows, highs, counts = [], [], [], [], []
+        
+        sorted_df = df.sort_values(by='y_pred')
+        
+        #for every y_pred in our sample...
+        #select all y_true values within the window around this bin center (+/- bin_width/2)
+        for yp in sorted_df['y_pred']:
+            #select all y_true values for galaxies within ±bin_width of this y_pred
+            mask = (sorted_df['y_pred'] >= yp - bin_width) & (sorted_df['y_pred'] <= yp + bin_width)
+            y_window = sorted_df.loc[mask, 'y_true']
 
-def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshold_width=0.5):
+            if len(y_window) > 0:
+                bin_centers.append(yp)
+                medians.append(np.median(y_window))
+                lows.append(np.percentile(y_window, 16))
+                highs.append(np.percentile(y_window, 84))
+                counts.append(len(y_window))
+        
+        #assemble DataFrame in same format as fixed. stats are automatically clean since we filter out 
+        #bins with no galaxies
+        stats_clean = pd.DataFrame({
+            'median': medians,
+            'low': lows,
+            'high': highs,
+            'count': counts})
+        
+        stats_clean['ci_width'] = stats_clean['high'] - stats_clean['low']
+        
+        return bin_centers, stats_clean
+    
+    else:
+        raise ValueError("The method arg must be 'fixed' or 'rolling'.")
+    
+
+def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshold_width=0.5, 
+                    min_bin_count=10, print_=False):
     '''
-    INPUT: y_test (true log(M200)), y_pred (model-predicted log(M200)), bin_centers and stats of distribution of y_test at binned y_pred values to determine confidence intervals, the threshold width at or above which the code will flag said bin(s) as where the model is an unreliable log(M200) predictor
+    INPUT: 
+    y_test : true log(M200)
+    y_pred : model-predicted log(M200)
+    bin_centers of distribution of y_test at binned y_pred 
+    stats : stats of distribution of y_test at binned y_pred values to determine confidence interval
+    threshold_width : at or above which the code will flag said bin(s) as where the model is an unreliable log(M200) predictor
+    print_ : Whether user would like printed outputs of counts per bin, (bins, CI_widths), and the fraction of bins with CI_widths above the a range of threshold values. Not recommended for 'running' CIs.
     OUTPUT: figure of y_pred vs. y_true, with a 1-to-1 line plotted for ease of comparison
     Note: BE SURE NGAL IS ROW-MATCHED WITH Y_TEST AND Y_PRED!
     '''
@@ -102,43 +153,37 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
     #confidence intervals
     if bin_centers is not None:
         
-        min_bin_count = 10
-        
-        print("Counts per bin:", stats['count'].values)
-
         stats_filtered = stats[stats['count'] >= min_bin_count]
         bin_centers_filtered = np.array(bin_centers)[stats['count'] >= min_bin_count]
-
-        mask = stats_filtered['ci_width'] > threshold_width
-        print("Bins and CI widths:", list(zip(np.round(bin_centers_filtered,2), np.round(stats_filtered['ci_width'].values,2))))
-        print()
-
         
         #assumes bin_centers_filtered and stats_filtered are ordered by increasing y_pred
         mask = stats_filtered['ci_width'].values <= threshold_width
         
-        print()
-        for w in [0.5, 0.75, 1.0, 1.25, 1.50]:
-            frac = np.mean(stats_filtered['ci_width'].values <= w)
-            print(f"Fraction of bins with CI width ≤ {w:.2f}: {frac:.2%}")
-        print()
-        
+        if print_:
+            print("Counts per bin:", stats['count'].values)        
+            print("Bins and CI widths:", list(zip(np.round(bin_centers_filtered,2), 
+                                                  np.round(stats_filtered['ci_width'].values,2))))
+            print()
+
+            for w in [0.5, 0.75, 1.0, 1.25, 1.50]:
+                frac = np.mean(stats_filtered['ci_width'].values <= w)
+                print(f"Fraction of bins with CI width ≤ {w:.2f}: {frac:.2%}")
+            print()
+
         if mask.any():
             first_reliable_index = np.argmax(mask)  # first True in the mask
             threshold_pred_mass = bin_centers_filtered[first_reliable_index]
-            print(f"Model becomes 'reliable' above predicted log(M200) ≈ {threshold_pred_mass:.2f}")
+            print(f"Model becomes 'reliable' above predicted log(M200) ≈ {threshold_pred_mass:.2f} for a threshold of {threshold_width}")
         else:
             print("No reliable bins found.")
             
-
-        #ax.fill_between(bin_centers_filtered, stats_filtered['low'], stats_filtered['high'],
-        #        color='gray', alpha=0.3, label=r'1$\sigma$ range of y_true')
         ax.fill_betweenx(y=bin_centers_filtered, x1=stats_filtered['low'], x2=stats_filtered['high'], 
                          color='gray', alpha=0.3, label=r'1$\sigma$ CI')
-
+        
         ax.plot(stats_filtered['median'], bin_centers_filtered, color='black', lw=2, label='Median y_true per y_pred bin')
 
-    
+        
+        
     ax.legend()
     
     fig.tight_layout()
@@ -147,7 +192,8 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
 
 def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=False,
               threshold=0.90,logM200_threshold=0, regression_plot=True, importances_plot=True,
-              test_size=0.3, n_trees=200, max_depth=10, threshold_width=0.5, bin_width=0.1):
+              test_size=0.3, n_trees=200, max_depth=10, threshold_width=0.5, bin_width=0.1, method='fixed',
+              min_bin_count=10):
     '''
     Train and evaluate a Random Forest Regressor to predict halo mass (log(M200)) for galaxy groups.
 
@@ -182,6 +228,10 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         at or above which the ML's predictive power is unreliable.
     bin_width : float, default=0.1
         predicted log(M200) bin size within which distribution of y_true is evaluated
+    method : str, default = 'fixed'
+        indicates whether confidence intervals are calculated using fixed ('fixed') or adaptive ('adaptive') binning
+    min_bin_count : int, default = 10
+        the minumum number of items per bin under which the bin will be discarded  
 
     Returns:
     --------
@@ -254,7 +304,6 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     X_train, X_test, y_train, y_test, ngal_train, ngal_test = train_test_split(X, y, X_ngal, 
                                                                                test_size=test_size, 
                                                                                random_state=63)
-    
     model.fit(X_train, y_train)
     
     y_pred = model.predict(X_test)
@@ -265,13 +314,17 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
 
     print(f"MSE: {mse:.3f}")
     print(f"R²: {r2:.3f} (R: {np.sqrt(r2):.3f})")
-    
-    
+
     #ploots
+    print_=False
+    if method=='fixed':
+        print_=True
     
     if regression_plot:
-        bin_centers, stats = confidence_intervals(y_test, y_pred, ngal_test, bin_width=bin_width)
-        plot_regression(y_test, y_pred, ngal_test, bin_centers, stats, threshold_width=threshold_width)
+        bin_centers, stats = confidence_intervals(y_test, y_pred, ngal_test, bin_width=bin_width,
+                                                  method=method)
+        plot_regression(y_test, y_pred, ngal_test, bin_centers, stats, threshold_width=threshold_width,
+                       print_=print_)
     
     if importances_plot:
         plot_importances(X, model) 
@@ -352,4 +405,5 @@ if __name__ == "__main__":
               logM200_threshold=float(param_dict['logM200_threshold']), test_size=float(param_dict['test_size']), 
               n_trees=int(param_dict['n_trees']), max_depth=int(param_dict['max_depth']), 
               bin_width=float(param_dict['bin_width']), threshold_width=float(param_dict['threshold_width']),
+              min_bin_count=float(param_dict['min_bin_count']), method=str(param_dict['method']),
               regression_plot=True, importances_plot=True)
