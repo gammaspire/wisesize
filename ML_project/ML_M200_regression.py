@@ -30,7 +30,7 @@ def confidence_intervals(y_test, y_pred, ngal=None, bin_width=0.3, method='fixed
         ngal: optional mask array for number of galaxies (filters data if provided)
         bin_width: width of bins for fixed method
         method: 'fixed' for equal-width bins (pd.cut), 
-                'running' for bins centered on each galaxy (sliding window)
+                'window' for bins centered on each galaxy (sliding window)
     '''
     
     #define new dataframe using y_test and y_pred
@@ -67,7 +67,7 @@ def confidence_intervals(y_test, y_pred, ngal=None, bin_width=0.3, method='fixed
         #stats contains the median 
         return bin_centers, stats_clean
     
-    elif method == 'rolling':
+    elif method == 'window':
 
         #initialize some empty lists
         #'sliding window bins'
@@ -192,8 +192,8 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
 
 def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=False,
               threshold=0.90,logM200_threshold=0, regression_plot=True, importances_plot=True,
-              test_size=0.3, n_trees=200, max_depth=10, threshold_width=0.5, bin_width=0.1, method='fixed',
-              min_bin_count=10):
+              test_size=0.3, n_trees=200, random_state=42, max_depth=10, threshold_width=0.5, 
+              bin_width=0.1, method='fixed', min_bin_count=10):
     '''
     Train and evaluate a Random Forest Regressor to predict halo mass (log(M200)) for galaxy groups.
 
@@ -223,6 +223,8 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         Number of trees in the Random Forest.
     max_depth : int, default=10
         Maximum depth of each tree in the Random Forest.
+    random_state : int, default=42
+        The 'random state' for the RFR model. Keep same to reproduce same model or change to gauge model consistency
     width_threshold : float, default=0.5
         95% confidence interval width threshold for y_true distribution for every y_pred bin, 
         at or above which the ML's predictive power is unreliable.
@@ -275,7 +277,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     df_group = df_group.dropna()
     
     #define your model of choice
-    model = RandomForestRegressor(n_estimators=n_trees, max_depth=max_depth, random_state=42)    
+    model = RandomForestRegressor(n_estimators=n_trees, max_depth=max_depth, random_state=random_state)    
     
     #features...some hodgepodge of potentially relevant properties.
     X=df_group[feature_list][df_group['group_M200']>logM200_threshold]
@@ -312,8 +314,8 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
-    print(f"MSE: {mse:.3f}")
     print(f"R²: {r2:.3f} (R: {np.sqrt(r2):.3f})")
+    print(f"MSE: {mse:.3f}")
 
     #ploots
     print_=False
@@ -332,7 +334,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     return X, model, y_test, y_pred
         
 
-def read_features():
+def read_features(param_dict_features=None):
     SigmaM_names = np.load(homedir+'/Desktop/SigmaMnames.npy', allow_pickle=True).tolist()
     Sigmak_names = np.load(homedir+'/Desktop/Sigmaknames.npy', allow_pickle=True).tolist()
             
@@ -404,6 +406,7 @@ if __name__ == "__main__":
               threshold=float(param_dict['correlation_threshold']), 
               logM200_threshold=float(param_dict['logM200_threshold']), test_size=float(param_dict['test_size']), 
               n_trees=int(param_dict['n_trees']), max_depth=int(param_dict['max_depth']), 
+              random_state=int(param_dict['random_state']),
               bin_width=float(param_dict['bin_width']), threshold_width=float(param_dict['threshold_width']),
               min_bin_count=float(param_dict['min_bin_count']), method=str(param_dict['method']),
               regression_plot=True, importances_plot=True)

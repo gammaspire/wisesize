@@ -8,6 +8,10 @@ n_trees                           200                   #Number of decision tree
 max_depth                         15                    #hyperparameter for random trees model; governs max number of "splits"
                                                         #a decision tree can make
 
+random_state                      42                    #The 'random state' integer for the RFR model. Keep same to reproduce 
+                                                        #same model each time or vary to gauge model consistency
+
+
 test_size                         0.20                   #Defines the fraction of the sample the model will use as test data
 
 

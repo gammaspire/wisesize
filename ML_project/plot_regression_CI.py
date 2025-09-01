@@ -38,6 +38,7 @@ def read_df(param_dict):
         
 #need to begin with the full list of features, which should already be saved in the .npy files on my Desktop.
 def read_full_features():
+    
     try:
         full_feature_list = read_features()
         return full_feature_list
@@ -46,19 +47,24 @@ def read_full_features():
         sys.exit()
 
 
-def run_ML_regression(df, feature_names, param_dict):
+def run_ML_regression(df, feature_names, param_dict, random_state=42):
     
     #will need this twice; may as well define a variable
     bin_width=float(param_dict['bin_width'])
     
     #just a basic little with no PCA features, no optimally-chosen features, no plots, and the parameters given in params.txt
-    _, model, y_test, y_pred = RFR_model(df=df, feature_list=feature_names, use_pca=False, use_optimal_features=False, 
-                                                  logM200_threshold=float(param_dict['logM200_threshold']), 
-                                                  test_size=float(param_dict['test_size']), 
-                                                  n_trees=int(param_dict['n_trees']), 
-                                                  max_depth=int(param_dict['max_depth']), bin_width=bin_width, 
-                                                  threshold_width=float(param_dict['threshold_width']),
-                                                  regression_plot=False, importances_plot=False)
+    _, model, y_test, y_pred = RFR_model(df=df, 
+                                         feature_list=feature_names, 
+                                         use_pca=False, 
+                                         use_optimal_features=False, 
+                                         logM200_threshold=float(param_dict['logM200_threshold']), 
+                                         test_size=float(param_dict['test_size']), 
+                                         n_trees=int(param_dict['n_trees']), 
+                                         max_depth=int(param_dict['max_depth']), 
+                                         bin_width=bin_width, 
+                                         threshold_width=float(param_dict['threshold_width']),
+                                         regression_plot=False, importances_plot=False, 
+                                         random_state=random_state)
     
     
     #generate the confidence intervals in each bin...
@@ -110,7 +116,7 @@ def isolate_important_features(X_features, model, N_output):
     return features_trim
 
 
-def plot_CI(median_list, CI_width_list, y_pred_bin_centers_list, N_outputs_all):
+def plot_CI(median_list, CI_width_list, y_pred_bin_centers_list, N_outputs_all, vary_features=False, vary_seed=False):
     
     from matplotlib.ticker import MultipleLocator
         
@@ -118,14 +124,14 @@ def plot_CI(median_list, CI_width_list, y_pred_bin_centers_list, N_outputs_all):
     plt.subplots_adjust(wspace=0.4)
     ax1, ax2 = axes.flat
     
-    #I want the ticks to be integers with a step size of 1
-    #ax1.xaxis.set_major_locator(MultipleLocator(1))
-    #ax2.xaxis.set_major_locator(MultipleLocator(1))
-    
     for i, N in enumerate(N_outputs_all):
-   
-        ax1.plot(y_pred_bin_centers_list[i], median_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
-        ax2.plot(y_pred_bin_centers_list[i], CI_width_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
+        
+        if vary_features:
+            ax1.plot(y_pred_bin_centers_list[i], median_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
+            ax2.plot(y_pred_bin_centers_list[i], CI_width_list[i], lw=3, alpha=0.5, label=f'{N} Important Feature(s)')
+        if vary_seed:
+            ax1.plot(y_pred_bin_centers_list[i], median_list[i], lw=3, alpha=0.5, label=f'{N} Random Seed')
+            ax2.plot(y_pred_bin_centers_list[i], CI_width_list[i], lw=3, alpha=0.5, label=f'{N} Random Seed')
         
     ax1.set_title('Median "True" log(M200) per "Pred" log(M200) Bin', fontsize=12)
     ax2.set_title('68% CI Widths [High-Low] Per Bin', fontsize=12)
@@ -146,14 +152,8 @@ def plot_CI(median_list, CI_width_list, y_pred_bin_centers_list, N_outputs_all):
     plt.show()
 
 
+def regression_CI_vary_features(df, full_feature_list, param_dict):
     
-if __name__ == "__main__":
-    
-    #initialize some crucial variables. so crucial, in fact, that this code is nonsensical without them.
-    
-    param_dict = read_params(homedir+'/github/wisesize/ML_project/rf_regression_parameters.txt')
-    full_feature_list = read_full_features()
-    df = read_df(param_dict)
     model = None    #need to set as None initially for the first pass of isolate_important_features()
     
     #will also need...lists of lists for the medians and widths!
@@ -183,4 +183,57 @@ if __name__ == "__main__":
         X_features = df[feature_names]
         
     #and now, the plot:
-    plot_CI(medians_list, CI_widths_list, ypred_bin_centers_list, N_outputs_all)
+    plot_CI(medians_list, CI_widths_list, ypred_bin_centers_list, N_outputs_all, vary_features=True)
+    
+
+def regression_CI_vary_state(df, param_dict):
+    
+    model = None    #need to set as None initially for the first pass of isolate_important_features()
+    sum_R = 0   #I want to print the average R score across every model iteration
+    
+    #will also need...lists of lists for the medians and widths!
+    medians_list = []
+    CI_widths_list = []
+    ypred_bin_centers_list = []   #need also for plotting purposes
+    
+    #include my six 'optimal' features here. 
+    optimal_features = ['log_Sigma_M1','log_Sigma_M2','log_Sigma_M7','log_Sigma_M8','log_Sigma_M17','ratio_SigmaM_1']
+    
+    #include the random start seeds desired here!
+    random_seeds = np.arange(20,50,2)
+    
+    #begin will the full list of features...
+    X_features = df[optimal_features]
+    
+    for i, seed in enumerate(random_seeds):
+        
+        print(f'Using {seed} "random state" for RFR model...')
+                
+        #need y_pred bin centers for the plot. :-)
+        medians, CI_widths, model, bin_centers = run_ML_regression(df, optimal_features, param_dict, random_state=seed)
+                
+        medians_list.append(medians)
+        CI_widths_list.append(CI_widths)
+        ypred_bin_centers_list.append(bin_centers)
+        
+     
+    #and now, the plot:
+    plot_CI(medians_list, CI_widths_list, ypred_bin_centers_list, random_seeds, vary_seed=True)
+    
+    
+    
+if __name__ == "__main__":
+    
+    #initialize some crucial variables. so crucial, in fact, that this code is nonsensical without them.
+    
+    param_dict = read_params(homedir+'/github/wisesize/ML_project/rf_regression_parameters.txt')
+    full_feature_list = read_full_features()
+    df = read_df(param_dict)
+
+    print('regression_CI_vary_features(df, full_feature_list, param_dict)')
+    print('regression_CI_vary_state(df, param_dict)')
+    
+    
+    
+    
+    
