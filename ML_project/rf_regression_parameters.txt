@@ -15,25 +15,28 @@ random_state                      42                    #The 'random state' inte
 test_size                         0.20                   #Defines the fraction of the sample the model will use as test data
 
 
-force_features_list               ['log_Sigma_M1','log_Sigma_M2','log_Sigma_M7','log_Sigma_M8','log_Sigma_M17','ratio_SigmaM_1']
+force_features_list               ['log_Sigma_M0','log_Sigma_M2','log_Sigma_M5','log_Sigma_M7','log_Sigma_M15']
                                                    
                                                    #force the model to use the features given in this list!
                                                    #this set of features will be used in place of the full feature set,
-                                                   #including for when running the optimization code when use_optimal_features=1
+                                                   #including when running the optimization code for use_optimal_features=1.
                                                    #use [] (empty list) to default to all features! 
                                                    #features must be comma-separated, NO SPACES!
                                                    #EXAMPLE: [Sigma_M4,Sigma_M5,ratio_SigmaM_1,Sigma_ngal_2]
 
 
-logM200_threshold                 11.5                  #log(M200) regression 'threshold', determines value above which the
-                                                        #model will flag galaxies for test/train data; 0 for "no threshold"
+Ngal_threshold                    3                     #Ngal regression 'threshold', determines value above which the
+                                                        #model will flag galaxies to calculate R^2 and MSE. Note the model 
+                                                        #will still use the full range of Ngal for training and testing! 
+                                                        #0 for "no threshold"
 
 correlation_threshold             0.90                 #Correlation threshold (for PCA).
 
 use_pca                           0                 #Use PCA to reduce feature dimensionality. 0 for False, 1 for True
 
 
-use_optimal_features              0                 #Iterate over model to find optimal features set. 0 for False, 1 for True
+use_optimal_features              0                 #Iterate over model to find optimal features set that yields 
+                                                    #the highest R^2 score; 0 for False, 1 for True
 
 
 threshold_width                   0.70              #68% confidence interval width threshold at or above which the ML's 
@@ -46,8 +49,6 @@ bin_width                         0.30              #predicted log(M200) bin siz
 min_bin_count                     10                #the minumum number of items per bin under which the bin will 
                                                     #be discarded  
   
-method                           rolling            #dictates whether confidence intervals are based on 'fixed' bin widths
-                                                    #or a 'running' with window size +/- bin_width/2 about the central galaxy
-                                                    #for 'running', the bins are centered on every galaxy.
+method                           window             #dictates whether confidence intervals are based on 'fixed' bin widths
                                                     #fixed --> for equal-width bins (pd.cut), 
-                                                    #rolling --> for computing pointwise/rolling CIs along y_pred
+                                                    #window --> for bins centered on each galaxy (sliding window)

@@ -57,7 +57,7 @@ def run_ML_regression(df, feature_names, param_dict, random_state=42):
                                          feature_list=feature_names, 
                                          use_pca=False, 
                                          use_optimal_features=False, 
-                                         logM200_threshold=float(param_dict['logM200_threshold']), 
+                                         Ngal_threshold=float(param_dict['Ngal_threshold']), 
                                          test_size=float(param_dict['test_size']), 
                                          n_trees=int(param_dict['n_trees']), 
                                          max_depth=int(param_dict['max_depth']), 
@@ -145,7 +145,7 @@ def plot_CI(median_list, CI_width_list, y_pred_bin_centers_list, N_outputs_all, 
     ax1.grid(True)
     ax2.grid(True)
     
-    ax1.legend(fontsize=9)
+    ax1.legend(fontsize=6)
     #ax2.legend(fontsize=9)
     
     fig.tight_layout()
@@ -196,8 +196,8 @@ def regression_CI_vary_state(df, param_dict):
     CI_widths_list = []
     ypred_bin_centers_list = []   #need also for plotting purposes
     
-    #include my six 'optimal' features here. 
-    optimal_features = ['log_Sigma_M1','log_Sigma_M2','log_Sigma_M7','log_Sigma_M8','log_Sigma_M17','ratio_SigmaM_1']
+    #include my six 'optimal' features here. either the *full* list OR 
+    optimal_features = parse_force_features(param_dict)
     
     #include the random start seeds desired here!
     random_seeds = np.arange(20,50,2)
@@ -205,9 +205,11 @@ def regression_CI_vary_state(df, param_dict):
     #begin will the full list of features...
     X_features = df[optimal_features]
     
+    print(f'Using the following list of features {optimal_features}:')
+    
     for i, seed in enumerate(random_seeds):
         
-        print(f'Using {seed} "random state" for RFR model...')
+        print(f'Using {seed} "random state(s)" for RFR model...')
                 
         #need y_pred bin centers for the plot. :-)
         medians, CI_widths, model, bin_centers = run_ML_regression(df, optimal_features, param_dict, random_state=seed)

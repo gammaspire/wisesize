@@ -102,11 +102,10 @@ def confidence_intervals(y_test, y_pred, ngal=None, bin_width=0.3, method='fixed
         return bin_centers, stats_clean
     
     else:
-        raise ValueError("The method arg must be 'fixed' or 'rolling'.")
+        raise ValueError("The method arg must be 'fixed' or 'window'.")
     
 
-def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshold_width=0.5, 
-                    min_bin_count=10, print_=False):
+def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshold_width=0.5, min_bin_count=10, print_=False):
     '''
     INPUT: 
     y_test : true log(M200)
@@ -114,6 +113,7 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
     bin_centers of distribution of y_test at binned y_pred 
     stats : stats of distribution of y_test at binned y_pred values to determine confidence interval
     threshold_width : at or above which the code will flag said bin(s) as where the model is an unreliable log(M200) predictor
+    min_bin_count : minimum number of galaxies that must exist in a bin for it to be plotted
     print_ : Whether user would like printed outputs of counts per bin, (bins, CI_widths), and the fraction of bins with CI_widths above the a range of threshold values. Not recommended for 'running' CIs.
     OUTPUT: figure of y_pred vs. y_true, with a 1-to-1 line plotted for ease of comparison
     Note: BE SURE NGAL IS ROW-MATCHED WITH Y_TEST AND Y_PRED!
@@ -165,24 +165,24 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
                                                   np.round(stats_filtered['ci_width'].values,2))))
             print()
 
-            for w in [0.5, 0.75, 1.0, 1.25, 1.50]:
+            for w in [0.5, 1.0, 1.50]:
                 frac = np.mean(stats_filtered['ci_width'].values <= w)
                 print(f"Fraction of bins with CI width ≤ {w:.2f}: {frac:.2%}")
             print()
 
+        '''
         if mask.any():
-            first_reliable_index = np.argmax(mask)  # first True in the mask
+            first_reliable_index = np.argmax(mask)  #first True in the mask
             threshold_pred_mass = bin_centers_filtered[first_reliable_index]
             print(f"Model becomes 'reliable' above predicted log(M200) ≈ {threshold_pred_mass:.2f} for a threshold of {threshold_width}")
         else:
             print("No reliable bins found.")
-            
+        '''   
+        
         ax.fill_betweenx(y=bin_centers_filtered, x1=stats_filtered['low'], x2=stats_filtered['high'], 
                          color='gray', alpha=0.3, label=r'1$\sigma$ CI')
         
         ax.plot(stats_filtered['median'], bin_centers_filtered, color='black', lw=2, label='Median y_true per y_pred bin')
-
-        
         
     ax.legend()
     
@@ -191,7 +191,7 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
 
 
 def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=False,
-              threshold=0.90,logM200_threshold=0, regression_plot=True, importances_plot=True,
+              pca_threshold=0.90,Ngal_threshold=0, regression_plot=True, importances_plot=True,
               test_size=0.3, n_trees=200, random_state=42, max_depth=10, threshold_width=0.5, 
               bin_width=0.1, method='fixed', min_bin_count=10):
     '''
@@ -207,12 +207,10 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         Whether to reduce features using PCA with specified correlation threshold.
     use_optimal_features : bool, default=False
         If True, selects optimal feature subset via repeated cross-validation.
-    force_features_list : list, default=None
-        If not None, will use the desired features given in params.txt for model fitting.
-    threshold : float, default=0.90
+    pca_threshold : float, default=0.90
         Correlation threshold used for PCA feature reduction (if use_pca is True).
-    logM200_threshold : float
-        Excludes galaxies with log(M200) below this value from training/testing; set to 0 for "no threshold"
+    Ngal_threshold : int
+        Excludes galaxies in groups with Ngal below this value from R^2, MSE calculations; set to 0 for "no threshold"
     regression_plot : bool, default=True
         Whether to display a scatter plot of predicted vs. true log(M200).
     importances_plot : bool, default=True
@@ -224,7 +222,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     max_depth : int, default=10
         Maximum depth of each tree in the Random Forest.
     random_state : int, default=42
-        The 'random state' for the RFR model. Keep same to reproduce same model or change to gauge model consistency
+        The 'random state' for the train/test sample. Keep same to reproduce same sample or change to gauge model consistency
     width_threshold : float, default=0.5
         95% confidence interval width threshold for y_true distribution for every y_pred bin, 
         at or above which the ML's predictive power is unreliable.
@@ -280,10 +278,10 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     model = RandomForestRegressor(n_estimators=n_trees, max_depth=max_depth, random_state=random_state)    
     
     #features...some hodgepodge of potentially relevant properties.
-    X=df_group[feature_list][df_group['group_M200']>logM200_threshold]
+    X=df_group[feature_list]
 
     #target variable...log(M200)
-    y=df_group['group_M200'][df_group['group_M200']>logM200_threshold]    
+    y=df_group['group_M200']  
     
 
     if use_optimal_features:
@@ -298,11 +296,11 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
             selected_features = optimal_features_list
 
         #predictors...some hodgepodge of potentially relevant properties.
-        X=df_group[selected_features][df_group['group_M200']>logM200_threshold]
+        X=df_group[selected_features]
         
     
     #split dataset; include X_ngal for when regression_plot=True
-    X_ngal = df_group['tempel2017_Ngal'][df_group['group_M200'] > logM200_threshold]
+    X_ngal = df_group['tempel2017_Ngal']
     X_train, X_test, y_train, y_test, ngal_train, ngal_test = train_test_split(X, y, X_ngal, 
                                                                                test_size=test_size, 
                                                                                random_state=63)
@@ -314,8 +312,23 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
+    print('_________________________')
+    print(f'Model diagnostics for all group galaxies:')
     print(f"R²: {r2:.3f} (R: {np.sqrt(r2):.3f})")
     print(f"MSE: {mse:.3f}")
+    print('_________________________')
+    
+    if Ngal_threshold>0:
+        
+        #apply flag [y_test>Ngal_threshold] to only evaluate how well the model performs for these galaxies!
+        flag=(ngal_test>Ngal_threshold)
+        mse_threshold = mean_squared_error(y_test[flag], y_pred[flag])
+        r2_threshold = r2_score(y_test[flag], y_pred[flag])
+        
+        print(f'Model diagnostics for Ngal [> {Ngal_threshold} group galaxies only]:')
+        print(f"R²: {r2_threshold:.3f} (R: {np.sqrt(r2_threshold):.3f})")
+        print(f"MSE: {mse_threshold:.3f}")
+        print('_________________________')
 
     #ploots
     print_=False
@@ -323,10 +336,11 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         print_=True
     
     if regression_plot:
+        
         bin_centers, stats = confidence_intervals(y_test, y_pred, ngal_test, bin_width=bin_width,
                                                   method=method)
-        plot_regression(y_test, y_pred, ngal_test, bin_centers, stats, threshold_width=threshold_width,
-                       print_=print_)
+        plot_regression(y_test, y_pred, ngal_test, bin_centers, stats, threshold_width=threshold_width, min_bin_count=float(param_dict['min_bin_count']),
+                        print_=print_)
     
     if importances_plot:
         plot_importances(X, model) 
@@ -335,6 +349,7 @@ def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=Fal
         
 
 def read_features(param_dict_features=None):
+    
     SigmaM_names = np.load(homedir+'/Desktop/SigmaMnames.npy', allow_pickle=True).tolist()
     Sigmak_names = np.load(homedir+'/Desktop/Sigmaknames.npy', allow_pickle=True).tolist()
             
@@ -355,7 +370,34 @@ def read_params(params_path):
             except:
                 continue
     return param_dict
+
+def parse_force_features(param_dict):
+    #pull feature names from param_dict. might be [] (empty list), and if so default to reading from .npy files.
+    feature_names = param_dict['force_features_list']
+        
+    if len(feature_names)<3:   #if empty bracket, pull full set of features names from .npy files
+        print('No force_features_list parameter found in rf_regression_parameters.txt or the list is empty!')
+        print('Searching for SigmaM and Sigmak .npy files...')
+        
+        try:
+            feature_names = read_features()
+            print('Success!')
+        except:
+            print('Bzzt. One or more feature files not found. Please generate the .npy files first before running.')
+            sys.exit()  
     
+    else:
+        #okay...parse string to isolate the features
+        #remove brackets, convert to list using ',' delimiter
+        feature_names=feature_names.replace('[','')
+        feature_names=feature_names.replace(']','')
+        feature_names=feature_names.replace(' ','')   #also remove any stray spaces
+        feature_names=feature_names.replace("'","")   #...and any single quotation marks
+        feature_names=feature_names.split(',')
+    
+    return feature_names
+
+
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Create ML model to predict log(M200) or environment class.")
@@ -379,32 +421,13 @@ if __name__ == "__main__":
         sys.exit()
     
     #pull feature names from param_dict. might be [] (empty list), and if so default to reading from .npy files.
-    feature_names = param_dict['force_features_list']
-        
-    if len(feature_names)<3:   #if empty bracket, pull full set of features names from .npy files
-        print('No force_features_list found in the parameters .txt file!')
-        print('Searching for SigmaM and Sigmak .npy files...')
-        
-        try:
-            feature_names = read_features()
-            print('Success!')
-        except:
-            print('Bzzt. One or more feature files not found. Please generate the .npy files first before running.')
-            sys.exit()  
-    
-    else:
-        #okay...parse string to isolate the features
-        #remove brackets, convert to list using ',' delimiter
-        feature_names=feature_names.replace('[','')
-        feature_names=feature_names.replace(']','')
-        feature_names=feature_names.replace(' ','')   #also remove any stray spaces
-        feature_names=feature_names.replace("'","")   #...and any single quotation marks
-        feature_names=feature_names.split(',')
+    feature_names = parse_force_features(param_dict)
+
     
     _ = RFR_model(df=df, feature_list=feature_names, use_pca=bool(int(param_dict['use_pca'])), 
               use_optimal_features=bool(int(param_dict['use_optimal_features'])), 
-              threshold=float(param_dict['correlation_threshold']), 
-              logM200_threshold=float(param_dict['logM200_threshold']), test_size=float(param_dict['test_size']), 
+              pca_threshold=float(param_dict['correlation_threshold']), 
+              Ngal_threshold=float(param_dict['Ngal_threshold']), test_size=float(param_dict['test_size']), 
               n_trees=int(param_dict['n_trees']), max_depth=int(param_dict['max_depth']), 
               random_state=int(param_dict['random_state']),
               bin_width=float(param_dict['bin_width']), threshold_width=float(param_dict['threshold_width']),
