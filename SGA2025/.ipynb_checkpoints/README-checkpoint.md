@@ -1,0 +1,1 @@
+This directory is dedicated to QA checks for the SGA2025 catalog, from which I will extract our WISESize parent sample.
