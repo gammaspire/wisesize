@@ -169,15 +169,6 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
                 frac = np.mean(stats_filtered['ci_width'].values <= w)
                 print(f"Fraction of bins with CI width ≤ {w:.2f}: {frac:.2%}")
             print()
-
-        '''
-        if mask.any():
-            first_reliable_index = np.argmax(mask)  #first True in the mask
-            threshold_pred_mass = bin_centers_filtered[first_reliable_index]
-            print(f"Model becomes 'reliable' above predicted log(M200) ≈ {threshold_pred_mass:.2f} for a threshold of {threshold_width}")
-        else:
-            print("No reliable bins found.")
-        '''   
         
         ax.fill_betweenx(y=bin_centers_filtered, x1=stats_filtered['low'], x2=stats_filtered['high'], 
                          color='gray', alpha=0.3, label=r'1$\sigma$ CI')

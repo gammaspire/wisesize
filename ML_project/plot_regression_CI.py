@@ -49,7 +49,7 @@ def read_full_features():
 
 def run_ML_regression(df, feature_names, param_dict, random_state=42):
     
-    #will need this twice; may as well define a variable
+    #will need this twice for the function; may as well define a variable
     bin_width=float(param_dict['bin_width'])
     
     #just a basic little with no PCA features, no optimally-chosen features, no plots, and the parameters given in params.txt
@@ -220,8 +220,7 @@ def regression_CI_vary_state(df, param_dict):
         
      
     #and now, the plot:
-    plot_CI(medians_list, CI_widths_list, ypred_bin_centers_list, random_seeds, vary_seed=True)
-    
+    plot_CI(medians_list, CI_widths_list, ypred_bin_centers_list, random_seeds, vary_seed=True)  
     
     
 if __name__ == "__main__":
