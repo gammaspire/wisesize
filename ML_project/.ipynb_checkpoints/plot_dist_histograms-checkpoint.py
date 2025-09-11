@@ -20,6 +20,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from astropy.table import Table
 from scipy.stats import norm
+from rich import print
 
 
 def read_df(param_dict):
@@ -69,42 +70,62 @@ def create_ypred_bins(y_test, y_pred):
     
     return [y1_dist, y2_dist, y3_dist]
 
-def plot_hist_dist(dist_data):
+def plot_hist_dist(dist_data, plot_kde=False):
+    
+    '''
+    plot_kde : bool -- set True if to add a smooth KDE fit to the data, which is more directly comparable to the Gaussian curve.
+    '''
     
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(15, 5), constrained_layout=True)
 
     axes = axes.ravel()
 
-    colors=['skyblue', 'orange', 'magenta']
-    titles=['11.5 < y_pred < 12.5',
-            '12.5 < y_pred < 13.5',
-            '13.5 < y_pred < 14.5']
+    colors=['skyblue', 'bisque', 'pink']
+    colors_0 = ['blue', 'orangered', 'deeppink']
+    titles=['11.5 < Pred log(M200) < 12.5',
+            '12.5 < Pred log(M200) < 13.5',
+            '13.5 < Pred log(M200) < 14.5']
     
     for i, ax in enumerate(axes):
         
+        data = dist_data[i]
+        x_vals = np.linspace(min(data), max(data), 500)
+        
+        if plot_kde:
+            #KDE
+            from scipy.stats import gaussian_kde
+            kde = gaussian_kde(data)
+            kde_vals = kde(x_vals)
+                    
         #plot histogram
-        counts, bins, _ = ax.hist(dist_data[i], bins=30, color=colors[i], edgecolor='black',
-                                  density=False)  # use raw counts
+        counts, bins, _ = ax.hist(data, bins=40, color=colors[i], edgecolor='gray',
+                                  alpha=0.6, density=True)
         
         #fit Gaussian curve to the data
-        mu, sigma = norm.fit(dist_data[i])
+        mu, sigma = norm.fit(data)
         
-        #plot the curve...
-        bin_centers = 0.5 * (bins[1:] + bins[:-1])
-        bin_width = bins[1] - bins[0]
+        #cale PDF by number of points and bin width to match histogram height
+        #to get density=True distribution, each bin is divided by [number of observations * the bin width]
+        pdf = norm.pdf(x_vals, mu, sigma) #* len(dist_data[i]) * bin_width
+        pdf_scaled = pdf * (counts.max() / pdf.max())
         
-        # scale PDF by number of points and bin width to match histogram height
-        pdf = norm.pdf(bin_centers, mu, sigma) * len(dist_data[i]) * bin_width
-        ax.plot(bin_centers, pdf, 'r--', linewidth=2,
-                label=f'Fit: μ={mu:.2f}, σ={sigma:.2f}')
+        ax.plot(x_vals, pdf_scaled, color='black', ls='--', linewidth=2,
+                label=f'Fit: $\mu$={mu:.2f}\n'
+                      f'1$\sigma$={sigma:.2f}')
+        
+        if plot_kde:
+            kde_vals_scaled = kde_vals * (counts.max() / kde_vals.max())
+            ax.plot(x_vals, kde_vals_scaled, color=colors_0[i], lw=2, label='Scaled KDE fit')        
         
         ax.set_title(titles[i], fontsize=15)
-        ax.set_xlabel('Distance between y_pred and y_test')
-        ax.set_ylabel('Counts')
+        ax.set_xlabel(r'log(M200)$_{Tempel}$ - log(M200)$_{Pred}$')
+        ax.set_ylabel('Frequency')
+        ax.set_xlim(-3,3)
         
-        ax.legend()
+        ax.legend(loc='upper left', fontsize=11.5)
         ax.grid(alpha=0.3)
-
+    
+    print('Note: Curve fits are scaled vertically for plotting purposes; does not affect mean or 1-sigma of the fit!')
     plt.show()
 
 
@@ -122,4 +143,4 @@ if __name__ == "__main__":
     y_test, y_pred = run_ML_regression(df, feature_list, param_dict)
     dist_data = create_ypred_bins(y_test, y_pred)
 
-    plot_hist_dist(dist_data)
+    plot_hist_dist(dist_data, plot_kde=True)
