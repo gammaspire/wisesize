@@ -6,8 +6,14 @@ PROCEDURE:
 * create a bin 11.5 < logM200 [pred] < 12.5. 
 * calculate the distance of true log(M200) values from the 1-to-1 line (i.e., true-pred)
 * plot histogram of these distances 
-* fit Gaussian curve to the histogram, maybe print mean/median/STDEV
-* check for tails, whether there are more >3sigma galaxies than expected with the curve fit, etc.
+* fit Gaussian curve to the histogram
+* again find distances > 3-sigma and trim from distribution; save first 3-sigma value
+* fit Gaussian curve again
+* again find distances > 3-sigma and trim from distribution; save second 3-sigma value
+* fit Gaussian curve AGAIN
+* plot the Gaussian, print mean/median/STDEV
+* color-code the region(s) of the histogram that were > 3-sigma of the first, second curve fits
+
 
 **Procedure repeats for 12.5 < logM200 [pred] < 13.5 and 13.5 < logM200 [pred]< 14.5**
 
@@ -98,13 +104,42 @@ def plot_hist_dist(dist_data, plot_kde=False):
             kde_vals = kde(x_vals)
                     
         #plot histogram
-        counts, bins, _ = ax.hist(data, bins=40, color=colors[i], edgecolor='gray',
+        counts, bins, patches = ax.hist(data, bins=40, color=colors[i], edgecolor='gray',
                                   alpha=0.6, density=True)
         
-        #fit Gaussian curve to the data
-        mu, sigma = norm.fit(data)
+        #now...run the Gaussian fitting routine thrice -- the first two times will remove 3-sigma outliers
+        #the third will be an actual fit
+        #create a data_trim variable
+        data_trim = data
         
-        #cale PDF by number of points and bin width to match histogram height
+        for iteration in range(3):
+            
+            #fit Gaussian curve to the data
+            mu, sigma = norm.fit(data_trim)
+            
+            #if final iteration, continue with the mu and sigma fit
+            if iteration==2:
+                continue
+            
+            #calculate 3-sigma
+            sigma3 = sigma*3
+            
+            #now remove the 3-sigma outliers. create the flag.
+            #will be row-matched to original data array
+            lower_bound = mu-sigma3
+            upper_bound = mu+sigma3
+            
+            data_flag = (data > lower_bound) & (data < upper_bound)
+            
+            if iteration==1:
+                #define sigma3 and mu bounds to a list; will use for plotting purposes below
+                #to highlight the tail(s)
+                sigma3_bounds = [lower_bound, upper_bound]
+            
+            #define the new data_trim
+            data_trim = data_trim[data_flag]
+            
+        #calc PDF by number of points and bin width to match histogram height
         #to get density=True distribution, each bin is divided by [number of observations * the bin width]
         pdf = norm.pdf(x_vals, mu, sigma) #* len(dist_data[i]) * bin_width
         pdf_scaled = pdf * (counts.max() / pdf.max())
@@ -116,6 +151,16 @@ def plot_hist_dist(dist_data, plot_kde=False):
         if plot_kde:
             kde_vals_scaled = kde_vals * (counts.max() / kde_vals.max())
             ax.plot(x_vals, kde_vals_scaled, color=colors_0[i], lw=2, label='Scaled KDE fit')        
+        
+        #lastly...color-code the wing(s) (i.e., galaxies which were omitted from the two 3-sigma tests)
+        # `bins[:-1]` is used because there is one more bin edge than there are bins
+
+        for patch, bin_edge in zip(patches, bins[:-1]):
+            if bin_edge < sigma3_bounds[0] or bin_edge >= sigma3_bounds[1]:
+                patch.set_facecolor(colors_0[i])
+            else:
+                patch.set_facecolor(colors[i])
+        
         
         ax.set_title(titles[i], fontsize=15)
         ax.set_xlabel(r'log(M200)$_{Tempel}$ - log(M200)$_{Pred}$')
