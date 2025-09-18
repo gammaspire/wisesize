@@ -76,11 +76,16 @@ def create_ypred_bins(y_test, y_pred):
     
     return [y1_dist, y2_dist, y3_dist]
 
-def plot_hist_dist(dist_data, plot_kde=False):
+def plot_hist_dist(dist_data, plot_kde=False, norm_area=False):
     
     '''
     plot_kde : bool -- set True if to add a smooth KDE fit to the data, which is more directly comparable to the Gaussian curve.
     '''
+    
+    if not norm_area:
+        print('norm_area=False; normalizing Gaussian fit to the height of the histogram.')
+    elif norm_area:
+        print('norm_area=True; normalizing Gaussian fit to area=1.')
     
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(15, 5), constrained_layout=True)
 
@@ -142,9 +147,11 @@ def plot_hist_dist(dist_data, plot_kde=False):
         #calc PDF by number of points and bin width to match histogram height
         #to get density=True distribution, each bin is divided by [number of observations * the bin width]
         pdf = norm.pdf(x_vals, mu, sigma) #* len(dist_data[i]) * bin_width
-        pdf_scaled = pdf * (counts.max() / pdf.max())
+
+        if not norm_area:
+            pdf = pdf * (counts.max() / pdf.max())
         
-        ax.plot(x_vals, pdf_scaled, color='black', ls='--', linewidth=2,
+        ax.plot(x_vals, pdf, color='black', ls='--', linewidth=2,
                 label=f'Fit: $\mu$={mu:.2f}\n'
                       f'1$\sigma$={sigma:.2f}')
         
@@ -174,18 +181,16 @@ def plot_hist_dist(dist_data, plot_kde=False):
     plt.show()
 
 
-    
-
 if __name__ == "__main__":
     
     #initialize some crucial variables. so crucial, in fact, that this code is nonsensical without them.
     
     param_dict = read_params(homedir+'/github/wisesize/ML_project/rf_regression_parameters.txt')
-    feature_list = read_features()
+    feature_list = parse_force_features(param_dict)
     
     df = read_df(param_dict)
     
     y_test, y_pred = run_ML_regression(df, feature_list, param_dict)
     dist_data = create_ypred_bins(y_test, y_pred)
 
-    plot_hist_dist(dist_data, plot_kde=True)
+    plot_hist_dist(dist_data, plot_kde=True, norm_area=False)

@@ -74,7 +74,7 @@ def save_to_table(cat, all_Sigma_Mstar, all_ngal, version=1):
     all_ngal_parent[flags] = all_ngal
     
     cat[f'2D_Sigma_Mstar'] = all_Sigma_Mstar_parent
-    cat[f'2D_Sigma_ngal'] = all_Sigma_Mstar_parent
+    cat[f'2D_Sigma_ngal'] = all_ngal_parent
     
     save_path = homedir+f'/Desktop/wisesize/nedlvs_parent_v{version}.fits'
     cat.write(save_path,overwrite=True)

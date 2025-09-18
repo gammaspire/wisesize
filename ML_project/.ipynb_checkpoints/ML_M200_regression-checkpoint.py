@@ -182,7 +182,7 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
 
 
 def RFR_model(df=None, feature_list=None, use_pca=True, use_optimal_features=False,
-              pca_threshold=0.90,Ngal_threshold=0, regression_plot=True, importances_plot=True,
+              pca_threshold=0.90, Ngal_threshold=0, regression_plot=True, importances_plot=True,
               test_size=0.3, n_trees=200, random_state=42, max_depth=10, threshold_width=0.5, 
               bin_width=0.1, method='fixed', min_bin_count=10):
     '''

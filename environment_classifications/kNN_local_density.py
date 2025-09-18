@@ -35,9 +35,17 @@ def plot_kNN(k, all_RA, all_DEC, all_kNN):
     ax = fig.add_subplot()
         
     im = ax.scatter(all_RA[good_flag], all_DEC[good_flag], c=np.log10(all_kNN[good_flag]), cmap='viridis', alpha=0.5, s=5, vmin=-1, vmax=1.5)
+    #also plot galaxies omitted from Sigma5 calculations due to edge effects
+    ax.scatter(all_RA[~good_flag], all_DEC[~good_flag], alpha=0.5, color='crimson',s=3,label='Removed (Edge Effects)')
     ax.invert_xaxis()
     ax.set_xlabel('RA [deg]',fontsize=14)
     ax.set_ylabel('DEC [deg]',fontsize=14)
+    
+    ax.axhline(-10,alpha=0.2,color='black')
+    ax.axhline(85,alpha=0.2,color='black')
+    
+    ax.axvline(87,alpha=0.2,color='black')
+    ax.axvline(300,alpha=0.2,color='black')
     
     ax.tick_params(labelsize=14)
     
@@ -98,7 +106,38 @@ class central_galaxy():
         #central galaxy
         #0, 1, 2, 3, 4, 5  (5 is FIFTH neighbor...exclude CENTRAL GALAXY!)
         #Castignani+2022 includes central galaxy, meaning they really calculate k=4
+    
+    
+    #eliminate edge effects - flag galaxies which may have biased Sigma_M and Ngal due to their radii extending beyond the limits of the survey area
+    def check_galaxy_buffer(self, radius_limit=3):
         
+        #find inner ra and dec buffer zones
+        #I need to convert the radius limit to degrees, to start. 
+        #note this will differ depending on redshift (AND declination...yay great circle distances).
+        radius_limit_degrees = Mpc_to_deg(radius_limit, self.redshift)
+
+        #define the 'buffer zones' and the flags corresponding to whether the galaxy is within them
+        
+        #left vertical
+        inner_ra_one = 87. + radius_limit_degrees
+        buffer_zone_one = (self.ra<=inner_ra_one) & (self.ra>=87.)
+        
+        #right vertical
+        inner_ra_two = 300. - radius_limit_degrees
+        buffer_zone_two = (self.ra>=inner_ra_two) & (self.ra<=300.)
+        
+        #top horizontal
+        inner_dec_one = 85. - radius_limit_degrees
+        buffer_zone_three = (self.dec>=inner_dec_one) & (self.dec<=85.)
+        
+        #bottom horizontal
+        inner_dec_two = -10. + radius_limit_degrees
+        buffer_zone_four = (self.dec<=inner_dec_two) & (self.dec>=-10.)
+        
+        #return True or False depending on whether galaxy is within any of the buffer zones
+        return (buffer_zone_one | buffer_zone_two | buffer_zone_three | buffer_zone_four)
+    
+    
     def isolate_galaxy_region(self, vr_limit, radius_limit, virgo_env=None):
         
         #use redshifts to calculate width of "slice"
@@ -314,13 +353,22 @@ def compute_kNN_densities(vr_limit=500, radius_limit=100, k=5, use_vfs=False, us
     start_time = time.perf_counter()
     
     for n in range(len(cat)):
+        
         galaxy = central_galaxy(ra[n], dec[n], redshift[n], k, cat, sgy_arr[n], sgx_arr[n], sgz_arr[n])
+        
+        #check whether galaxy is within the buffer zones. default is 3 Mpc if user has not defined a limit
+        flag=galaxy.check_galaxy_buffer(radius_limit) if (radius_limit<100) else galaxy.check_galaxy_buffer()
+        if flag:
+            all_kNN[n] = -999
+            continue   #if galaxy is within this buffer zone, assign -999
+
         if not use_radec:
             galaxy.calc_kSigma_with_tree(tree, coords[n], vr_limit, virgo_env)
         else:
             galaxy.isolate_galaxy_region(vr_limit, radius_limit)
             galaxy.calc_projected_distances()
             galaxy.calc_kSigma()
+        
         all_kNN[n] = galaxy.density_kSigma
 
     print(f"# galaxies with no valid kNN: {(all_kNN == -999).sum()}")
@@ -365,5 +413,4 @@ if __name__ == "__main__":
         k=args.k,
         use_vfs=args.vfs,
         use_radec=args.radec,
-        write=args.write
-    )
+        write=args.write)

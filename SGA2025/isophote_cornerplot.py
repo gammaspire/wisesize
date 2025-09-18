@@ -118,14 +118,14 @@ def generate_cornerplot(data_table=None, band='R'):
     #pull the axes from the corner plot
     axes_flat = [ax for ax in p.axes.flat if ax is not None]
 
-    #each diagonal (axis 0, 2, 5, or 9) shows the variable ellipse_tab[colname]
-    #that colname is index 0, 1, 2, 3 as you go down the diagonal
+    #each diagonal (axis 0, 2, 5, 9, ...) shows the variable ellipse_tab[colname]
+    #that colname is index 0, 1, 2, 3, ... as you go down the diagonal
     #this dictionary converts the axis number of the diagonal with the index of the corresponding colname
-    ax_dict={0:'0', 2:'1', 5:'2', 9:'3'}
+    ax_dict={0:'0', 2:'1', 5:'2', 9:'3', 14:'4', 20:'5', 27:'6'}
 
     for i, ax in enumerate(axes_flat):
 
-        if i not in [0,2,5,9]:   #omit histograms; note that hidden axes are None but also have an index
+        if i not in [0,2,5,9,14,20,27]:   #omit histograms; note that hidden axes are None but also have an index
 
             #grab labels (which are, in fact, the column names!)
             x_label = ax.get_xlabel()
