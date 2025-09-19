@@ -5,8 +5,8 @@ feature_path_Sigmak               /Desktop/Sigmaknames.npy   #see above; for Sig
 
 n_trees                           200                   #Number of decision trees for creating the random forest model.
 
-max_depth                         15                    #hyperparameter for random trees model; governs max number of "splits"
-                                                        #a decision tree can make
+max_depth                         15                    #hyperparameter for random trees model; governs max number of 
+                                                        #"splits" a decision tree can make
 
 random_state                      42                    #The 'random state' integer for the RFR model. Keep same to reproduce 
                                                         #same model each time or vary to gauge model consistency
@@ -29,6 +29,8 @@ Ngal_threshold                    3                     #Ngal regression 'thresh
                                                         #model will flag galaxies to calculate R^2 and MSE. Note the model 
                                                         #will still use the full range of Ngal for training and testing! 
                                                         #0 for "no threshold"
+                                                        #if nonzero, model will output R^2 and MSE for both the full set
+                                                        #and the Ngal > [number] case
 
 correlation_threshold             0.90                 #Correlation threshold (for PCA).
 

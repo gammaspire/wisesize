@@ -105,10 +105,10 @@ def isolate_important_features(X_features, model, N_output):
     
     #generate indices to sort features and importances from least-to-most important
     sort_indices = np.argsort(importances)
-    
+        
     #organize the features
     features = features[sort_indices]
-    
+        
     #isolate the top N_output features
     features_trim = features[-int(N_output):]
     
@@ -133,14 +133,14 @@ def plot_CI(median_list, CI_width_list, y_pred_bin_centers_list, N_outputs_all, 
             ax1.plot(y_pred_bin_centers_list[i], median_list[i], lw=3, alpha=0.5, label=f'{N} Random Seed')
             ax2.plot(y_pred_bin_centers_list[i], CI_width_list[i], lw=3, alpha=0.5, label=f'{N} Random Seed')
         
-    ax1.set_title('Median "True" log(M200) per "Pred" log(M200) Bin', fontsize=12)
-    ax2.set_title('68% CI Widths [High-Low] Per Bin', fontsize=12)
+    #ax1.set_title('Median "True" log(M200) per Predicted log(M200) Bin', fontsize=11)
+    #ax2.set_title('68% CI Widths per Predicted log(M200) Bin', fontsize=11)
     
-    ax1.set_xlabel(f'Predicted log(M200)',fontsize=12)
-    ax2.set_xlabel(f'Predicted log(M200)',fontsize=12)
+    ax1.set_xlabel(f'Predicted log(M200) [dex]',fontsize=12)
+    ax2.set_xlabel(f'Predicted log(M200) [dex]',fontsize=12)
     
-    ax1.set_ylabel("Median 'True' log(M200)")
-    ax2.set_ylabel("68% CI Width")
+    ax1.set_ylabel("Median Tempel+2017 log(M200) [dex]")
+    ax2.set_ylabel("68% CI Width [dex]")
     
     ax1.grid(True)
     ax2.grid(True)
