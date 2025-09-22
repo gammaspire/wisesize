@@ -125,7 +125,7 @@ def generate_cornerplot(data_table=None, band='R'):
 
     for i, ax in enumerate(axes_flat):
 
-        if i not in [0,2,5,9]:   #omit histograms; note that hidden axes are None but also have an index
+        if i not in [0,2,5,9,14,20,27]:   #omit histograms; note that hidden axes are None but also have an index
 
             #grab labels (which are, in fact, the column names!)
             x_label = ax.get_xlabel()
@@ -149,7 +149,7 @@ def generate_cornerplot(data_table=None, band='R'):
 
             ax.axline([0,0],slope=1, color='red',ls='--',alpha=0.3, label='1-to-1')
             ax.axline([0,0],slope=median_ratio, color='purple', ls='-.', 
-                      alpha=0.7, label=f'Slope: {median_ratio:.2f}')
+                      alpha=0.7, label=f'Slope: {median_ratio:.3f}')
 
             ax.set_xlim(0,)
             ax.set_ylim(0,)
@@ -168,11 +168,11 @@ def generate_cornerplot(data_table=None, band='R'):
             median = np.median(tab[x_label])
             stdev = np.std(tab[x_label])
 
-            ax.axvline(mean,color='blue',ls=':',alpha=0.8,label=f'Mean: {mean:.2f} $\pm$ {stdev:.2f}')
-            ax.axvline(median,alpha=0,label=f'Median: {median:.2f}')
+            ax.axvline(mean,color='blue',ls=':',alpha=0.8,label=f'Mean: {mean:.3f} $\pm$ {stdev:.3f}')
+            ax.axvline(median,alpha=0,label=f'Median: {median:.3f}')
 
             ax.text(0.4, 0.3, 
-                    f"{len(data_table[x_label][x_label_zeros])*100/len_all:.2f}% with no {x_label}\n",
+                    f"{100 - len(data_table[x_label][x_label_zeros])*100/len_all:.2f}% with no {x_label}\n",
                     transform=ax.transAxes, ha='left', va='top', 
                     fontsize=7, color='green')
 
