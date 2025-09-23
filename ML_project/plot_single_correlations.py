@@ -217,8 +217,8 @@ def plot_CI_widths(df, feature_names, y_test, y_pred):
     
     CI_width_model = stats_model['high'] - stats_model['low']
     
-    plt.xlabel('Predicted log(M200)',fontsize=14)
-    plt.ylabel('68% Confidence Interval Width',fontsize=14)
+    plt.xlabel('Predicted log(M200) [dex]',fontsize=14)
+    plt.ylabel('68% Confidence Interval Width [dex]',fontsize=14)
     
     plt.plot(bin_centers_model[mask_model], CI_width_model[mask_model], label='RFR Model', color='purple', lw=2)
     
