@@ -210,7 +210,7 @@ def plot_CI_widths(df, feature_names, y_test, y_pred):
         
         CI_width = stats['high'] - stats['low']
         
-        plt.plot(bin_centers[mask], CI_width[mask], alpha=0.5, ls='--', label=names[i])
+        plt.plot(bin_centers[mask], CI_width[mask], alpha=0.3, ls='--', label=names[i], color=f"#0{i}0ab5")
         
     #RFR MODEL
     bin_centers_model, stats_model, mask_model = get_RFR_stats(y_test, y_pred, bin_width=0.5)

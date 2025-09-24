@@ -170,7 +170,7 @@ def plot_hist_dist(dist_data, plot_kde=False, norm_area=False):
         
         
         ax.set_title(titles[i], fontsize=15)
-        ax.set_xlabel(r'log(M200)$_{Tempel}$ - log(M200)$_{Pred}$')
+        ax.set_xlabel(r'log(M200)$_{Tempel}$ - log(M200)$_{Pred}$',fontsize=12)
         ax.set_ylabel('Frequency')
         ax.set_xlim(-3,3)
         

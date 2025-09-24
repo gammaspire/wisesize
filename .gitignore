@@ -1,0 +1,11 @@
+# remove clutter
+__pycache__/
+
+# Ruff stuff:
+.ruff_cache/
+
+# PyPI configuration file
+.pypirc
+
+# Jupyter Notebook
+.ipynb_checkpoints

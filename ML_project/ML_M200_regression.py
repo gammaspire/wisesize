@@ -141,14 +141,13 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
     ax.plot([y_pred.min(), y_pred.max()],
              [y_pred.min(), y_pred.max()], 'k--', lw=2)
     
-    ax.set_xlabel("True log(M200)")
-    ax.set_ylabel("Predicted log(M200)")
-    ax.set_title("Random Forest Regression")
-    ax.grid(True)
+    ax.set_xlabel(r"Tempel+2017 log(M$_{200T}$) [dex]",fontsize=14)
+    ax.set_ylabel(r"Predicted log(M$_{200}$) [dex]",fontsize=14)
+    ax.grid(True, alpha=0.5)
     
     cbar = fig.colorbar(plot, boundaries=bins, ticks=bin_centers_cb)
     cbar.ax.set_yticklabels(labels)
-    cbar.set_label('Ngal in Group/Cluster')
+    cbar.set_label('Ngal in Group/Cluster',fontsize=14)
     
     #confidence intervals
     if bin_centers is not None:
@@ -171,11 +170,15 @@ def plot_regression(y_test, y_pred, ngal, bin_centers=None, stats=None, threshol
             print()
         
         ax.fill_betweenx(y=bin_centers_filtered, x1=stats_filtered['low'], x2=stats_filtered['high'], 
-                         color='gray', alpha=0.3, label=r'1$\sigma$ CI')
+                         color='gray', alpha=0.3, label=r'1$\sigma$ confidence intervals')
         
-        ax.plot(stats_filtered['median'], bin_centers_filtered, color='black', lw=2, label='Median y_true per y_pred bin')
-        
-    ax.legend()
+        ax.plot(stats_filtered['median'], bin_centers_filtered, color='black', lw=2, 
+                label = r'Median logM$_{200T}$ per' + '\n' + r'predicted log(M$_{200}$) bin')
+       
+    ax.set_xlim(7.9,15)
+    ax.set_ylim(10.2,15)
+    
+    ax.legend(loc='upper left',fontsize=10)
     
     fig.tight_layout()
     plt.show()
