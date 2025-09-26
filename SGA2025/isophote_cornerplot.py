@@ -176,7 +176,7 @@ def generate_cornerplot(data_table=None, band='R'):
                     transform=ax.transAxes, ha='left', va='top', 
                     fontsize=7, color='green')
 
-            ax.legend(fontsize=6,handlelength=0, handletextpad=0)
+            ax.legend(fontsize=6, handlelength=0, handletextpad=0)
 
     p.fig.suptitle(f"SMA_MOMENT vs. {band} Isophotal Radii", y=1)     
 

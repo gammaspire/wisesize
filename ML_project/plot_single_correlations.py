@@ -7,6 +7,7 @@ import sys
 import numpy as np
 from rich import print
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -14,6 +15,7 @@ import seaborn as sns
 import os
 homedir=os.getenv("HOME")
 
+min_count=10
 
 #read in dataframe
 def read_df(param_dict):
@@ -62,24 +64,6 @@ def get_ytest_ypred(df, feature_names, param_dict, random_state=42):
     return y_test, y_pred
 
 
-def get_single_stats(df, xlabel, ylabel):
-    
-    #generate the confidence intervals in each bin...
-    bin_centers, stats = confidence_intervals(df[xlabel], df[ylabel], bin_width=0.5)
-    bin_centers = np.asarray(bin_centers)
-
-    #isolate the CI_width for each bin
-    CI_widths = stats['ci_width'].values
-
-    #also isolate medians
-    medians = stats['median'].values
-
-    #filter out bins with very few galaxies...
-    mask = (stats['count']>=5)
-    
-    return bin_centers, stats, mask
-
-
 def get_RFR_stats(y_test, y_pred, bin_width=0.3):
     
     #generate the confidence intervals in each bin...
@@ -87,14 +71,14 @@ def get_RFR_stats(y_test, y_pred, bin_width=0.3):
     bin_centers_model = np.asarray(bin_centers_model)
 
     #filter out bins with very few galaxies...
-    mask_model = (stats_model['count']>=5)
+    mask_model = (stats_model['count']>=min_count)
     
     return bin_centers_model, stats_model, mask_model
 
 
 #fit linear function to predict log(M200) from a single parameter
 def get_feature_fit_predictions(df, feature, return_xy_array=False, invert_for_plot=False,
-                               print_=False):
+                                test_size=0.8, print_=False):
     """
     Fits a linear regression of log(M200) vs. feature using numpy and returns predicted log(M200)
     in the same format as RFR model predictions.
@@ -108,23 +92,26 @@ def get_feature_fit_predictions(df, feature, return_xy_array=False, invert_for_p
     X = df_clean[[feature]].values.flatten()
     y = df_clean['group_M200'].values   # log(M200)
     
+    #I want my train and test data to be as comparable to the ML model's setup as possible
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=63)
+    
     #fit a straight line y = slope * X + intercept
-    slope, intercept = np.polyfit(X, y, 1)
+    slope, intercept = np.polyfit(X_train, y_train, 1)
     
     #generate predictions
-    y_true_feature = y.copy()
-    y_pred_feature = slope * X + intercept
+    y_true_feature = y_test.copy()
+    y_pred_feature = slope * X_test + intercept
     
     if print_:
         print(f'{feature}: slope={slope:.3f}, intercept={intercept:.3f}')
     
     if return_xy_array:
-        x_vals = np.linspace(X.min(), X.max(), 200)
+        x_vals = np.linspace(X_test.min(), X_test.max(), 300)
         y_vals = slope * x_vals + intercept
         
         if invert_for_plot:
             #solve for feature as a function of log(M200) for plotting
-            xx = np.linspace(y.min(), y.max(), 200)
+            xx = np.linspace(y.min(), y.max(), 300)
             yy = (xx - intercept) / slope
             return y_true_feature, y_pred_feature, xx, yy
         
@@ -181,7 +168,7 @@ def create_cornerplot(df, feature_names):
             ax.fill_between(line_x, line_y - sigma, line_y + sigma, color='crimson', alpha=0.3, 
                             label=f'$\pm1\sigma$ {sigma:.2f}')
 
-            ax.set_xlabel('log(M200)')
+            ax.set_xlabel(r'log(M$_{200T}$)')
             ax.set_xlim(7.9,15.1)
             ax.set_ylim(7.9,12.7)
             ax.set_xticks(np.arange(8,15.1,1))
@@ -191,38 +178,68 @@ def create_cornerplot(df, feature_names):
         ax.grid(alpha=0.3)
 
 
-def plot_CI_widths(df, feature_names, y_test, y_pred):
+def plot_comps(df, feature_names, y_test, y_pred, median=False):
+    '''
+    NOTE: median=True will plot the median data rather than the confidence interval widths
+    '''
     
     df_clean = clean_the_df(df)
     
-    plt.figure(figsize=(6, 5))
+    plt.figure(figsize=(10, 5))
 
     #SINGLE-PARAMETER FUNCTION FITS
-    names=[r'log$\Sigma_{M0}$', r'log$\Sigma_{M2}$', r'log$\Sigma_{M5}$', r'log$\Sigma_{M7}$', r'log$\Sigma_{M15}$', r'$\Sigma_2$', r'$\Sigma_5$', r'$\Sigma_{10}$', r'M$_*$', r'Ngal$_0$', r'Ngal$_2$', r'Ngal$_5$', r'Ngal$_7$']
+    names=[r'log$\Sigma_{M0}$', r'log$\Sigma_{M2}$', r'log$\Sigma_{M5}$', r'log$\Sigma_{M7}$', r'log$\Sigma_{M15}$', r'$\Sigma_5$', r'$\Sigma_{10}$']
     
-    for i, feature in enumerate(['log_Sigma_M0','log_Sigma_M2','log_Sigma_M5','log_Sigma_M7','log_Sigma_M15','Sigma_2','Sigma_5','Sigma_10','Mstar','Sigma_ngal_0','Sigma_ngal_2','Sigma_ngal_5','Sigma_ngal_7']):
+    #colors = ["#ff0000","#ff6600","#c0ff00","#39ff00","#00ff73","#00ffdc", "#0099ff", 
+    #          "#0022ff", "#4d00ff", "#b200ff", "#ff00a2"]
+    colors = ["#DC143C", "#FF5C00", "#DAA520", "#008000", "#0000FF", "#4B0082", "#EE82EE"]
+    
+    for i, feature in enumerate(['log_Sigma_M0','log_Sigma_M2','log_Sigma_M5','log_Sigma_M7','log_Sigma_M15','Sigma_5','Sigma_10']):
         
         y_true_feature, y_pred_feature = get_feature_fit_predictions(df_clean, feature)
         
         bin_centers, stats = confidence_intervals(y_true_feature, y_pred_feature, bin_width=0.5)
         bin_centers = np.asarray(bin_centers)
-        mask = (stats['count']>=5)
+        mask = (stats['count']>=min_count)
         
         CI_width = stats['high'] - stats['low']
+        yvar = CI_width
         
-        plt.plot(bin_centers[mask], CI_width[mask], alpha=0.3, ls='--', label=names[i], color=f"#0{i}0ab5")
+        if median:
+            yvar = stats['median']
+        
+        plt.plot(bin_centers[mask], yvar[mask], alpha=0.5, ls='--', label=names[i], 
+        color=colors[i])
+        #color=f"#{random.randint(0,255):02x}{random.randint(0,255):02x}{random.randint(0,255):02x}")
         
     #RFR MODEL
     bin_centers_model, stats_model, mask_model = get_RFR_stats(y_test, y_pred, bin_width=0.5)
     
     CI_width_model = stats_model['high'] - stats_model['low']
+    yvar_model = CI_width_model
+    y_label = '68% Confidence Interval Width [dex]'
     
-    plt.xlabel('Predicted log(M200) [dex]',fontsize=14)
-    plt.ylabel('68% Confidence Interval Width [dex]',fontsize=14)
+    if median:
+        yvar_model = stats_model['median']
+        y_label = r'Median Tempel+2017 log(M$_{200T}$) [dex]'
     
-    plt.plot(bin_centers_model[mask_model], CI_width_model[mask_model], label='RFR Model', color='purple', lw=2)
+    plt.xlabel(r'Predicted log(M$_{200T}$) [dex]',fontsize=14)
+    plt.ylabel(y_label,fontsize=14)
     
-    plt.legend(fontsize=8)
+    plt.plot(bin_centers_model[mask_model], yvar_model[mask_model], label='ML Model', color='black', lw=2)
+    
+    #plt.xlim(9.6,15)
+    plt.grid(alpha=0.2)
+    
+    loc_='lower left'
+    if median:
+        loc_='lower right'
+    
+    legend_ = plt.legend(fontsize=10, ncol=2, handlelength=1, loc=loc_)  #, frameon=False,
+
+    # change the line width for the legend
+    for line in legend_.get_lines():
+        line.set_linewidth(3.0)
     
     plt.show()
                 
@@ -238,5 +255,6 @@ if __name__ == "__main__":
     
     y_test, y_pred = get_ytest_ypred(df, feature_names, param_dict)
     
-    create_cornerplot(df, feature_names)
-    plot_CI_widths(df, feature_names, y_test, y_pred)
+    #create_cornerplot(df, feature_names)
+    plot_comps(df, feature_names, y_test, y_pred, median=True)  #comparison between data and modelllllll.
+    plot_comps(df, feature_names, y_test, y_pred)   #same comparison, but with CIssssssssss.
