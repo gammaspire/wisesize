@@ -8,49 +8,22 @@ homedir = os.getenv("HOME")
 import numpy as np
 import sys
 
+sys.path.insert(0,'utils')
+from param_utils import Params   #inherit the parameters class
+from init_utils import define_flux_dict, check_dir, trim_tables
+from conversion_utils import clip_negative_outliers, apply_error_floor
 
-def define_flux_dict(n_or_s):
-    
-    if n_or_s=='n':
-        flux_dict = {'FUV':'FUV', 'NUV':'NUV', 'G':'BASS-g', 'R':'BASS-r',
-                     'W1':'WISE1', 'W2':'WISE2', 'W3':'WISE3', 'W4':'WISE4'}
-    else:
-        flux_dict = {'FUV':'FUV', 'NUV':'NUV', 'G':'decamDR1-g', 'R':'decamDR1-r',
-                     'Z':'decamDR1-z', 'W1':'WISE1', 'W2':'WISE2', 'W3':'WISE3', 'W4':'WISE4'}
-    return flux_dict
-
-#for low-z objects, v = cz
-def get_redshift(Vcosmic_array):
-    
-    try:
-        z=Vcosmic_array/3e5
-    except:
-        z=np.asarray(Vcosmic_array)/3e5
-    return z
-
-
-#trim flags according to redshift values (must be positive) and whether the galaxies contain photometry data
-def trim_tables(IDs, redshifts, flux_tab, ext_tab):
-    
-    all_flags = (redshifts>0.) & (flux_tab['photFlag'])
-    
-    return IDs[all_flags], redshifts[all_flags], flux_tab[all_flags], ext_tab[all_flags]
-
+filter_names_all = ['FUV','NUV','G','R','Z','W1','W2','W3','W4']
 
 #return a table which contains galaxy IDs, redshifts, fluxes, and flux errors
-def create_fauxtab(IDs, redshifts, flux_tab, ext_tab):
+def create_fauxtab(params_class, flux_tab, ext_tab, IDs, redshifts):
     
     #isolate needed flux_tab fluxes; convert from nanomaggies to mJy
     #order: FUV, NUV, g, r, (z,) W1, W2, W3, W4
     flag_n = flux_tab['DEC_MOMENT']>32   #isolates north galaxies
     flag_s = flux_tab['DEC_MOMENT']<32   #isolates south galaxies
-    
-    filter_names_all = ['FUV','NUV','G','R','Z','W1','W2','W3','W4']
-    
-    faux_table = Table([flux_tab['OBJID'],np.round(redshifts,4)],
-                           names=['OBJID','redshift']) 
-    
-    N=len(flux_tab) #all VF galaxies...north and south.
+        
+    N=len(flux_tab) #all galaxies...north and south.
     dtype=[('OBJID','str'),('redshift','f4'),('FUV','f4'),('FUV_err','f4'),
            ('NUV','f4'),('NUV_err','f4'),('G','f4'),('G_err','f4'),
           ('R','f4'),('R_err','f4'),('Z','f4'),('Z_err','f4'),
@@ -61,49 +34,67 @@ def create_fauxtab(IDs, redshifts, flux_tab, ext_tab):
     faux_tab['OBJID']=IDs
     faux_tab['redshift']=redshifts
         
+    #define conversion factor for flux
+    conversion_factor = 1.
+    #if True, convert fluxes from nanomaggies to mJy
+    if params_class.convert_flux:
+        conversion_factor = 3.631e-3
+        
+    #for all filters in filter_names_all...populate the respective data column
     for i in filter_names_all:
         
-        fluxes = flux_tab[f'FLUX_AP06_{i}']*3.631e-3
-        flux_ivars = flux_tab[f'FLUX_IVAR_AP06_{i}']
-        #Milky Way (MW) extinction corrections (SFD) for each band, given in magnitudes.
-        ext_corrections = 10.**(ext_tab[f'A({i})_SFD']/2.5)   #converting to linear scale factors
-        flux_errs = np.zeros(len(fluxes)) 
+        fluxes = flux_tab[params_class.flux_id_col + i] * conversion_factor
+        flux_errs = flux_tab[params_class.flux_id_col_err + i]   #do not apply conversion factor just yet
         
-        #for every element in that list of fluxes...convert invariance to err if able
-        for n in range(len(fluxes)):
+        ###################
+        # Clean the data! #
+        ###################
+        
+        #first create flags to identify every row with no photometry
+        no_flux_flag = (fluxes==0.) & (flux_errs==0.)
+
+        #any row with no fluxes will be assigned an np.nan
+        fluxes[no_flux_flag] = np.nan
+        flux_errs[no_flux_flag] = np.nan
+        
+        #for galaxies WITH photometry!
+        
+        #if need to convert invariance to an error...do so
+        if params_class.ivar_to_err:
+            flux_errs[~no_flux_flag] = np.sqrt(1/flux_errs[~no_flux_flag]) * conversion_factor
             
-            #if zero (indicates that there are no data for these filters), replace with NaNs
-            
-            if ((fluxes[n]==0.) & (flux_errs[n]==0.)):
-                fluxes[n] = 'NaN'
-                flux_errs[n] = 'NaN'
-            
-            #if neither condition is met, calculate error as normal
-            else:
-                flux_errs[n] = np.sqrt(1/flux_ivars[n])*3.631e-3
+            #if neither condition is met, convert error as normal
+        else:
+            flux_errs[~no_flux_flag] = flux_errs[~no_flux_flag] * conversion_factor
+
+        ###################
+        # EXTINCTION CORR #
+        ###################
+        
+        #check for flag indicating conversion from transmission to extinction (in magnitudes) is needed
+        if params_class.transmission_to_extinction:
+            ext_values = -2.5 * np.log10(ext_tab[params_class.extinction_col+i])
+        else:
+            ext_values = ext_tab[params_class.extinction_col+i]
+        
+        #Milky Way (MW) extinction corrections (SFD) for each band, given in magnitudes.
+        ext_corrections = 10.**(ext_values/2.5)   #converting to linear scale factors
                 
-                #now apply SFD extinction correction (per Legacy Survey)
-                flux_errs[n] *= ext_corrections[n]
-                fluxes[n] *= ext_corrections[n]  
+        #now apply SFD extinction correction (per Legacy Survey)
+        flux_errs[~no_flux_flag] *= ext_corrections[~no_flux_flag]
+        fluxes[~no_flux_flag] *= ext_corrections[~no_flux_flag]
 
-                #If the relative error dF/F < 0.10, then let dF = 0.10*F
-                #the idea is that our MINIMUM error floor for fluxes will be set as 10% of the flux value
-                #for grz and 15% for W1-4 & NUV+FUV. 
-                #CURRENTLY --> using 10% for grz; 13% for FUV, NUV, W1-4.
-                if n in [0,1,4,5,6,7]:   #FUV, NUV, W1, W2, W3, W4
-                    if (flux_errs[n]/np.abs(fluxes[n])) < 0.13:
-                        flux_errs[n] = np.abs(0.13*fluxes[n])
-                else:   #legacy grz
-                    if (flux_errs[n]/np.abs(fluxes[n])) < 0.10:
-                        flux_errs[n] = np.abs(0.10*fluxes[n])
+        #If the relative error dF/F < 0.10, then let dF = 0.10*F
+        #the idea is that our MINIMUM error floor for fluxes will be set as 10% of the flux value
+        #for grz and 15% for W1-4 & NUV+FUV. 
+        #CURRENTLY --> using 10% for grz; 13% for FUV, NUV, W1-4.
+        flux_errs[~no_flux_flag] = apply_error_floor(fluxes[~no_flux_flag], flux_errs[~no_flux_flag], band=i)
 
-                #...another conditional statement. if zero is within the 4-sigma confidence interval of the flux value, keep the negative value. if the flux is OUTSIDE of this limit, then set to NaN. 
 
-                if (fluxes[n]<0.) & ~((0.<(fluxes[n]+flux_errs[n]*4)) & (0.>(fluxes[n]-flux_errs[n]*4))):
+        #...another conditional statement. if zero is within the 4-sigma confidence interval of the flux value, keep the negative value. if the flux is OUTSIDE of this limit, then set to NaN. 
+        fluxes, flux_errs = clip_negative_outliers(fluxes, flux_errs)
+          
 
-                    fluxes[n] = 'NaN'
-                    flux_errs[n] = 'NaN'
-            
         #appending arrays to faux table
         faux_tab[i] = fluxes
         faux_tab[f'{i}_err'] = flux_errs
@@ -111,45 +102,52 @@ def create_fauxtab(IDs, redshifts, flux_tab, ext_tab):
     faux_tab.add_columns([flag_n,flag_s],names=['flag_north','flag_south'])
 
     return faux_tab
-
-
-def check_dir(dir_path):
-    if not os.path.isdir(dir_path):
-        os.mkdir(dir_path)
-        print(f'Created {dir_path}')
         
 
-def create_input_files(IDs, redshifts, flux_tab, ext_tab, dir_path, bands_north, bands_south, trim=True):
+def create_input_files(params_class, trim=True):
+        
+    #define flux table, extinction table
+    ext_tab = params_class.ext_tab
+    flux_tab = params_class.flux_tab
     
-    filter_names_all = ['FUV','NUV','G','R','Z','W1','W2','W3','W4']
-
+    IDs = params_class.IDs
+    redshifts = params_class.redshifts
+    
+    #re-define variables with trimmed data
     if trim:
-        IDs, redshifts, flux_tab, ext_tab = trim_tables(IDs,redshifts,flux_tab,ext_tab)
+        IDs, redshifts, flux_tab, ext_tab = trim_tables(IDs, redshifts, flux_tab, ext_tab)
     
-    #contains FUV, NUV, G, R, Z, W1, W2, W3, W4, north flag, south flag for ALL VF galaxies
-    faux_table = create_fauxtab(IDs, redshifts, flux_tab, ext_tab)
+    #contains FUV, NUV, G, R, Z, W1, W2, W3, W4, north flag, south flag for all galaxies
+    faux_table = create_fauxtab(params_class, flux_tab=flux_tab, ext_tab=ext_tab, IDs=IDs, redshifts=redshifts)
     
     #generate flux dictionaries to map the params.txt flux bands to their CIGALE labels
     flux_dict_north = define_flux_dict('n')
     flux_dict_south = define_flux_dict('s')
     
+    bands_north = list(flux_dict_north.keys())
+    bands_south = list(flux_dict_south.keys())
+    
     #write files...
-    check_dir(dir_path)
+    check_dir(params_class.dir_path)
         
-    with open(dir_path+'/vf_data.txt', 'w') as file:
+    with open(params_class.dir_path+'/galaxy_data.txt', 'w') as file:
         
-        #create file header
+        #create file header!
         s = '# id redshift '
         
-        #for flux in bands_all
-        
+        #if the band appears in both hemispheres (like G, R), write only once.
+        #otherwise, write labels only if they exist in north/south dict.
         for flux in filter_names_all:
             
-            #if flux included twice and is NOT GR(Z), only count once.
+            #len(flux)>=2 isolates NUV, FUV, W1-4 bands. excludes gr(z) bands
             if (flux in bands_north) & (flux in bands_south) & (len(flux)>=2):
-                s = s + f'{flux_dict_north[flux]} {flux_dict_north[flux]}_err ' #same for N&S
+                s = s + f'{flux_dict_north[flux]} {flux_dict_north[flux]}_err ' #same for N & S
             
-            #otherwise, proceed as normal. add labels if needed, else ''.
+            #for G and R, add twice (as we will need one label each for BASS-g north and DECam-g south
+            #add labels if needed, else ''.
+            #adding them consecutively ensures the file will read something like BASS-g BASS-g_err DECam-g DECam-g_err ...
+            #I guess '' is a failsafe in case the band is not in north or south...effectively skips the header label
+            #maybe I set that up once upon a time to accommodate Z-band? I don't know.
             else:
                 s = s + f'{flux_dict_north[flux]} {flux_dict_north[flux]}_err ' if flux in bands_north else s + ''
                 s = s + f'{flux_dict_south[flux]} {flux_dict_south[flux]}_err ' if flux in bands_south else s + ''
@@ -157,16 +155,26 @@ def create_input_files(IDs, redshifts, flux_tab, ext_tab, dir_path, bands_north,
         s = s + ' \n'
         file.write(s)
         
-        #recreating list of header information...BUT FILTERS ONLY!
+        #storing header informtaion in a list so I can interate over it
+        #however, I am only keeping the CIGALE FILTER LABELS. no #, no id, no redshift
         filter_labels_all = [x for x in s.split() if ('_err' not in x) & (x!='#') & (x!='id') & (x!='redshift')]
+        
+        #you may wonder why G and R are included TWICE!
+            #There are two sources of G and R depending on whether galaxy is in northern
+            #or southern hemisphere. The first G (from flux_dict_north) becomes 'BASS-g,' the second 'decamDR1-g'
+            #this is how I set up the header file earlier!
         filter_comp_names = ['FUV','NUV','G','G','R','R','Z','W1','W2','W3','W4']
         print(filter_labels_all)
         
         #for every "good" galaxy in flux_tab, add a row to the text file with relevant information
+        
+        ####################
         ###NORTH GALAXIES###
+        ####################
+        
         for n in faux_table[faux_table['flag_north']]:
                             
-            #the first two will be ID and redshift, by design.
+            #the first two will be ID [0] and redshift [1], by design.
             s_gal = f'{n[0]} {round(n[1],4) } '
             
             for i in range(len(filter_labels_all)):
@@ -178,7 +186,6 @@ def create_input_files(IDs, redshifts, flux_tab, ext_tab, dir_path, bands_north,
                         s_gal = s_gal + "%.3f "%flux_val + "%.3f "%flux_err
                     else:
                         s_gal = s_gal + 'nan nan '
-                
                 else:
                     s_gal = s_gal + 'nan nan '
             
@@ -186,7 +193,10 @@ def create_input_files(IDs, redshifts, flux_tab, ext_tab, dir_path, bands_north,
             file.write(s_gal)
         print('n galaxies finished', len(faux_table[faux_table['flag_north']]))
         
+        ####################
         ###SOUTH GALAXIES###
+        ####################
+        
         for n in faux_table[faux_table['flag_south']]:
                 
             #the first two will be ID and redshift, by design.
@@ -204,98 +214,54 @@ def create_input_files(IDs, redshifts, flux_tab, ext_tab, dir_path, bands_north,
             s_gal = s_gal + '\n'
             file.write(s_gal)
             
-        print('s galaxies finished', len(faux_table[faux_table['flag_south']]))
-           
-        
-        file.close()    
+        print('s galaxies finished', len(faux_table[faux_table['flag_south']]))   
 
 
-def create_ini_file(dir_path, sfh_module, dust_module, ncores):
+def create_ini_file(params_class): #dir_path, sfh_module, dust_module, ncores):
     
-    check_dir(dir_path)
+    check_dir(params_class.dir_path)
     
     #create pcigale.ini files
-    with open(dir_path+'/pcigale.ini', 'w') as file:
-        file.write('data_file = vf_data.txt \n')
+    with open(params_class.dir_path+'/pcigale.ini', 'w') as file:
+        file.write('data_file = galaxy_data.txt \n')
         file.write('parameters_file = \n')
-        file.write(f'sed_modules = {sfh_module}, bc03, nebular, dustatt_modified_CF00, {dust_module}, skirtor2016, redshifting \n')
+        file.write(f'sed_modules = {params_class.sfh_module}, bc03, nebular, dustatt_modified_CF00, {params_class.dust_module}, skirtor2016, redshifting \n')
         file.write('analysis_method = pdf_analysis \n')
-        file.write(f'cores = {ncores} \n')
-        file.close()    
+        file.write(f'cores = {params_class.ncores} \n')  
 
     #create pcigale.ini.spec files
     
-    with open(dir_path+'/pcigale.ini.spec', 'w') as file:
+    with open(params_class.dir_path+'/pcigale.ini.spec', 'w') as file:
         file.write('data_file = string() \n')
         file.write('parameters_file = string() \n')
         file.write('sed_modules = cigale_string_list() \n')
         file.write('analysis_method = string() \n')
         file.write('cores = integer(min=1)')
-        file.close() 
         
-def run_all(Vcosmic_array, IDs, flux_tab, ext_tab, dir_path, bands_north, bands_south,
-            sfh_module='sfh2exp', dust_module='dl2014', ncores=1, trim=True):
-
-    create_ini_file(dir_path, sfh_module=sfh_module, dust_module=dust_module, 
-                    ncores=ncores)
-    redshifts = get_redshift(Vcosmic_array)
-    create_input_files(IDs, redshifts, flux_tab, ext_tab, dir_path, bands_north, 
-                       bands_south, trim)
-    
-
+        
 if __name__ == "__main__":
 
-    #unpack params.txt file here
+    #unpack args here
     if '-h' in sys.argv or '--help' in sys.argv:
         print("USAGE: %s [-params (name of parameter.txt file, no single or double quotations marks)]")
+        sys.exit()
     
     if '-params' in sys.argv:
         p = sys.argv.index('-params')
         param_file = str(sys.argv[p+1])
-
-    #create dictionary with keyword and values from param textfile
-    param_dict={}
-    with open(param_file) as f:
-        for line in f:
-            try:
-                key = line.split()[0]
-                val = line.split()[1]
-                param_dict[key] = val
-            except:
-                continue
-        
-        #extract parameters and assign to variables...
-        path_to_repos = param_dict['path_to_repos']
-        vcosmic_table = param_dict['vcosmic_table']
-        phot_table = param_dict['phot_table']
-        extinction_table = param_dict['extinction_table']
-        
-        dir_path = param_dict['destination']
-                
-        id_col = param_dict['galaxy_ID_col']
-        
-        bands_north = param_dict['bands_north'].split("-")   #list!
-        bands_south = param_dict['bands_south'].split("-")   #list!
-        
-        ncores = param_dict['ncores']
-        
-        #in order to save the probability distribution functions, ncores = nblocks = 1
-        if bool(param_dict['create_pdfs']):
-            ncores = 1
-        
-        sfh_module = param_dict['sfh_module']
-        dust_module = param_dict['dust_module']
+    else:
+        print('-params argument not found. exiting.')
+        sys.exit()
     
+    #define ALL parameters using Params class (utils/param_utils.py)
+    params = Params(param_file)
     trim = True
     
-    #load tables
-    vf = Table.read(path_to_repos+vcosmic_table)
-    flux_tab = Table.read(path_to_repos+phot_table)
-    ext_tab = Table.read(path_to_repos+extinction_table)
+    params.load_tables()   #load the tables ext_tab, main_tab, phot_tab
     
-    Vcosmic_array = vf['Vcosmic']
-    IDs = vf[id_col]
-
-    run_all(Vcosmic_array, IDs, flux_tab, ext_tab, dir_path, bands_north, 
-            bands_south, sfh_module=sfh_module, dust_module=dust_module, 
-            ncores=ncores,trim=True)
+    params.load_columns()  #defines galaxy IDs (params.IDs) and redshifts (params.redshifts)
+    
+    
+    #annnnnd, run
+    create_ini_file(params)
+    create_input_files(params, trim)

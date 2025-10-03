@@ -1,7 +1,10 @@
+See the Wiki for this code [here](https://github.com/gammaspire/wisesize/wiki/CIGALE-Initialization-and-Execution#cigale-setup) for detailed setup instructions!
+
+
 To run (after navigating to this directory locally):
 ```
 conda activate cigale
-python run_cigale_NS.py -params params.txt'
+python run_cigale_NS.py -params params.txt
 ```
 Doing so will run CIGALE on both north and south input txt files, with specific parameters according to params.txt. Output (and input) files will default to specific $/Desktop directories, as indicated in params.txt, unless I specify they go elsewhere.
 

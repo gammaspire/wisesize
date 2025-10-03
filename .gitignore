@@ -3,8 +3,8 @@
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
-#__pycache__/
-#/__pycache__/*
+__pycache__/
+/__pycache__/*
 
 .DS_Store
 
@@ -176,5 +176,11 @@ poetry.toml
 
 # LSP config files
 pyrightconfig.json
+
+#the irrelevant run_cigale_split directory!
+wiseseds/run_cigale_split
+
+#the also irrelevant python notebook for evaluating results...
+wiseseds/eval_cigale_results.ipynb
 
 # End of https://www.toptal.com/developers/gitignore/api/python

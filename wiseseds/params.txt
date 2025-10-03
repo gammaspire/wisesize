@@ -1,13 +1,43 @@
-#---------------------------------- File paths ----------------------------------
+#----------------------------------- File paths -----------------------------------
 
-path_to_repos        /Users/k215c316/Desktop/v2-20220820/   # loc of needed tables (phot, main, etc.)
-vcosmic_table        vf_v2_environment.fits                 # table with Vcosmic
-phot_table           vf_v2_legacy_ephot.fits                # table with photometry
-extinction_table     vf_v2_extinction.fits                  # table with extinction parameters
+path_to_repos        /Users/k215c316/Desktop//Users/k215c316/Desktop/SGA2025-forkim/dr9-north/234/23490p5933/   # loc of needed tables (phot, main, etc.)
+phot_table           SGA2025_23490p5933-ephot.fits          # table with photometry
+extinction_table     SGA2025_23490p5933-tractor.fits        # table with extinction parameters
+main_table           SGA2025_23490p5933-ephot.fits          # main table with redshift (or Vcosmic), OBJID, etc.
 
-destination          /Users/k215c316/Desktop/cigale_vf/     # directory where CIGALE output out/ is housed
+destination          /Users/k215c316/Desktop/cigale_SGA2025_test/     # directory where CIGALE output out/ is housed
 
-#---------------------------------- Parameters ----------------------------------
+
+#---------------------------------- Column Names ----------------------------------
+    
+                                                            # NOTE: one of these two columns MUST exist!
+redshift_column             Z                               # name of redshift column (if any)
+Vcosmic_column              Vcosmic                         # name of cosmic velocity column (if any)
+                                                               # if none, default to Vcosmic
+
+galaxy_ID_col               OBJID                           # name of table column containing the galaxy IDs
+flux_ID_col                 FLUX_AP03_                      # prefix column name for fluxes (e.g., FLUX_AP06_G)
+flux_ID_col_err             FLUX_ERR_AP03_                  # note we are using 1.5x SMA aperture fluxes.
+                                                               # for VFS, this is AP06.
+                                                               # for WISESize, this is AP03.
+                                                               
+extinction_col              mw_transmission_                #prefix column name for Milky Way extinction 
+
+#----------------------------------- Conversions -----------------------------------
+
+nanomaggies_to_mJy          1                               #convert photometric fluxes from nanomaggies to mJy
+                                                            #1 if True, 0 if False
+                                                            
+IVAR_to_ERR                 0                               #convert flux errors from 'invariance' to 'error'
+                                                            #1 if True, 0 if False
+                                                            
+transmission_to_extinction  1                               #convert transmission to absorption if the extinction
+                                                            #correction column instead gives mw_transmission!
+                                                            #1 if True, 0 if False
+
+
+
+#----------------------------------- Parameters ------------------------------------
 
 bands_north     FUV-NUV-G-R-W1-W2-W3-W4         # options: FUV, NUV, G, R, Z, W1-4, PACS. 
                                                 # separate each band with a -
@@ -17,16 +47,11 @@ bands_south     FUV-NUV-G-R-Z-W1-W2-W3-W4       # PACS 1-3 are Herschel bands (7
                                                 # NOTE: If PACS bands are present, then users must 
                                                 # generate the input text file manually!
 
-galaxy_ID_col   VFID                            # name of table column containing the galaxy IDs
-flux_ID_col     FLUX_AP06_                      # prefix column name for fluxes (e.g., FLUX_AP06_G)
-                                                # also assumes errors follow the same format
-                                                # (e.g., FLUX_AP06_G_ERR)
-
 
 nblocks         4                               # number of blocks to use
 ncores          1                               # number of cores to use
 lim_flag        noscaling                       # which lim_flag to use (noscaling, none, full, ...)
-sed_plots       True                            # indicates whether user would like SED plots
+sed_plots       True                            # indicates whether script should generate SED plots
 sfh_module      sfh2exp                         # which sfh module to use (sfh2exp, sfhdelayed, ...)
 dust_module     dl2014                          # which dust module to use (dl2014 or dale2014)
 
@@ -39,4 +64,3 @@ create_pdfs     1                               # 0 if False, 1 if True.
 delete_PDF_fits  0                              # 0 if False, 1 if True.
                                                 # removes PDF.fits files after creating PDF.png files
                                                 # particularly beneficial for storage control
-

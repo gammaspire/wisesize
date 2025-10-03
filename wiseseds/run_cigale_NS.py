@@ -53,7 +53,9 @@ if __name__ == "__main__":
     create_pdfs = param_dict['create_pdfs']
     
     run_cigale_all(sed_plots,destination,herschel)
-    #run_PDF_all(destination)
+    
+    if bool(int(create_pdfs)):
+        run_PDF_all(destination)
     
     print(f'SEDs+PDFs (if applicable) and results.fits located in {destination}/out/.')
     
