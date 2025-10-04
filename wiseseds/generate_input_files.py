@@ -20,9 +20,13 @@ def create_fauxtab(params_class, flux_tab, ext_tab, IDs, redshifts):
     
     #isolate needed flux_tab fluxes; convert from nanomaggies to mJy
     #order: FUV, NUV, g, r, (z,) W1, W2, W3, W4
-    flag_n = flux_tab['DEC_MOMENT']>32   #isolates north galaxies
-    flag_s = flux_tab['DEC_MOMENT']<32   #isolates south galaxies
-        
+    try:
+        flag_n = flux_tab['DEC_MOMENT']>32   #isolates north galaxies
+        flag_s = flux_tab['DEC_MOMENT']<32   #isolates south galaxies
+    except:
+        flag_n = flux_tab['DEC']>32   #isolates north galaxies
+        flag_s = flux_tab['DEC']<32   #isolates south galaxies
+    
     N=len(flux_tab) #all galaxies...north and south.
     dtype=[('OBJID','str'),('redshift','f4'),('FUV','f4'),('FUV_err','f4'),
            ('NUV','f4'),('NUV_err','f4'),('G','f4'),('G_err','f4'),
@@ -73,9 +77,9 @@ def create_fauxtab(params_class, flux_tab, ext_tab, IDs, redshifts):
         
         #check for flag indicating conversion from transmission to extinction (in magnitudes) is needed
         if params_class.transmission_to_extinction:
-            ext_values = -2.5 * np.log10(ext_tab[params_class.extinction_col+i])
+            ext_values = -2.5 * np.log10(ext_tab[params_class.extinction_col+i.lower()])
         else:
-            ext_values = ext_tab[params_class.extinction_col+i]
+            ext_values = ext_tab[params_class.extinction_col+i.lower()]
         
         #Milky Way (MW) extinction corrections (SFD) for each band, given in magnitudes.
         ext_corrections = 10.**(ext_values/2.5)   #converting to linear scale factors

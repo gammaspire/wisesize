@@ -1,9 +1,9 @@
+import numpy as np
+
 #######################
 # Vcosmic to redshift #
 #######################
-def get_redshift(Vcosmic_array):
-    import numpy as np
-    
+def get_redshift(Vcosmic_array):    
     #for low-z objects, v = cz
     try:
         z=Vcosmic_array/3e5

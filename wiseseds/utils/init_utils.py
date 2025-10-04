@@ -29,7 +29,12 @@ def trim_tables(IDs, redshifts, flux_tab, ext_tab):
     '''
     trim flags according to redshift values (must be positive) and whether the galaxies contain photometry data
     '''
-    all_flags = (redshifts>0.) & (flux_tab['photFlag'])
+    
+    #convert to numpy arrays...
+    IDs = np.array(IDs)
+    redshifts = np.array(redshifts)
+    
+    all_flags = (redshifts>0.) # & (flux_tab['photFlag'])
     
     return IDs[all_flags], redshifts[all_flags], flux_tab[all_flags], ext_tab[all_flags]
 

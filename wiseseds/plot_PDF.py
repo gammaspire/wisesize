@@ -12,6 +12,9 @@ import pandas as pd
 import os
 homedir = os.getenv("HOME")
 
+sys.path.insert(0, 'utils')
+from param_utils import Params
+
 
 def get_bayes_list(results):
     
@@ -106,22 +109,13 @@ if __name__ == "__main__":
     if '-params' in sys.argv or '--params' in sys.argv:
         p = sys.argv.index('-params')
         param_file = str(sys.argv[p+1])
-
-    #create dictionary with keyword and values from param textfile
-    param_dict={}
-    with open(param_file) as f:
-        for line in f:
-            try:
-                key = line.split()[0]
-                val = line.split()[1]
-                param_dict[key] = val
-            except:
-                continue
-        
-    destination = param_dict['destination']
-    delete_fits = param_dict['delete_PDF_fits']
+    else:
+        print('-params not found. exiting.')
+        sys.exit()
     
-    results = Table.read(f'{destination}out/results.fits')
+    params = Params(param_file)
+    
+    results = Table.read(f'{params.destination}out/results.fits')
     
     for index in range(len(results)):
-        generate_pdf_pngs(results, destination, index, delete_fits)
+        generate_pdf_pngs(results, params.destination, index, params.delete_pdf_fits)

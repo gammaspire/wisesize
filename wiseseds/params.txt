@@ -1,6 +1,6 @@
 #----------------------------------- File paths -----------------------------------
 
-path_to_repos        /Users/k215c316/Desktop//Users/k215c316/Desktop/SGA2025-forkim/dr9-north/234/23490p5933/   # loc of needed tables (phot, main, etc.)
+path_to_repos        /Users/k215c316/Desktop/SGA2025-forkim/dr9-north/234/23490p5933/   # loc of needed tables (phot, main, etc.)
 phot_table           SGA2025_23490p5933-ephot.fits          # table with photometry
 extinction_table     SGA2025_23490p5933-tractor.fits        # table with extinction parameters
 main_table           SGA2025_23490p5933-ephot.fits          # main table with redshift (or Vcosmic), OBJID, etc.
@@ -51,7 +51,8 @@ bands_south     FUV-NUV-G-R-Z-W1-W2-W3-W4       # PACS 1-3 are Herschel bands (7
 nblocks         4                               # number of blocks to use
 ncores          1                               # number of cores to use
 lim_flag        noscaling                       # which lim_flag to use (noscaling, none, full, ...)
-sed_plots       True                            # indicates whether script should generate SED plots
+sed_plots       1                               # indicates whether script should generate SED plots
+                                                # 1 for True, 0 for False
 sfh_module      sfh2exp                         # which sfh module to use (sfh2exp, sfhdelayed, ...)
 dust_module     dl2014                          # which dust module to use (dl2014 or dale2014)
 

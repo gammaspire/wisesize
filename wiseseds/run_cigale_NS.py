@@ -3,7 +3,11 @@ import os
 from astropy.table import Table, vstack
 homedir = os.getenv("HOME")
 
-def run_cigale_all(sed_plots,destination,herschel=False):
+sys.path.insert(0,'utils')
+from param_utils import Params   #inherit Params class
+
+
+def run_cigale_all(sed_plots, destination, herschel=False):
     
     sed_param = '-sed_plots' if sed_plots else ''
     
@@ -25,38 +29,26 @@ if __name__ == "__main__":
     #unpack params.txt file here
     if '-h' in sys.argv or '--help' in sys.argv:
         print("USAGE: %s [-params (name of parameter.txt file, no single or double quotations marks)]")
+        sys.exit()
     
     if '-params' in sys.argv:
         p = sys.argv.index('-params')
         param_file = str(sys.argv[p+1])
+    else:
+        print('-params argument not found. exiting.')
+        sys.exit()
 
-    #create dictionary with keyword and values from param textfile
-    param_dict={}
-    with open(param_file) as f:
-        for line in f:
-            try:
-                key = line.split()[0]
-                val = line.split()[1]
-                param_dict[key] = val
-            except:
-                continue
-        
-        #extract parameters and assign to variables...
-        sed_plots = bool(param_dict['sed_plots'])
-        
-        herschel=False
-        if 'PACS' in param_dict['bands_north']:
-            herschel=True
-        
-    destination = param_dict['destination']
+    params = Params(param_file)
+
+    herschel=False
+    if 'PACS' in params.bands_north:
+        herschel=True
+                
+    run_cigale_all(params.sed_plots, params.destination, herschel)
     
-    create_pdfs = param_dict['create_pdfs']
+    if params.create_pdfs:
+        run_PDF_all(params.destination)
     
-    run_cigale_all(sed_plots,destination,herschel)
-    
-    if bool(int(create_pdfs)):
-        run_PDF_all(destination)
-    
-    print(f'SEDs+PDFs (if applicable) and results.fits located in {destination}/out/.')
+    print(f'SEDs+PDFs (if applicable) and results.fits located in {params.destination}/out/.')
     
     

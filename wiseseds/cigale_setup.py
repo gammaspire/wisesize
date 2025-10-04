@@ -52,14 +52,14 @@ if __name__ == "__main__":
     params = Params(param_file)
             
     #in order to save the probability distribution functions, ncores = nblocks = 1
-    if bool(int(params.create_pdfs)):
+    if params.create_pdfs:
         print('Create PDFs set to True! nblocks = ncores = 1.')
     
     print('Configuring input text files...')
     run_genconf(params.dir_path)
 
     add_params(params.dir_path, sed_plots, params.lim_flag, params.nblocks, 
-               create_pdfs=bool(int(params.create_pdfs)))
+               create_pdfs=params.create_pdfs)
     
     print('Executing CIGALE...')
     run_cigale(params.dir_path)
