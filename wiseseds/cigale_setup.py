@@ -74,7 +74,7 @@ if __name__ == "__main__":
         print('Removing SFH .fits files')
         
         os.chdir(params.dir_path+'/out/')
-        os.mkdirs('best_SED_models', exist_ok=True)
+        os.makedirs('best_SED_models', exist_ok=True)
         
         if sed_plots:
             os.system('rm *best_model*.fits')
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         os.system('rm *_SFH*')
         
         try:
-            os.mkdirs('PDF_fits', exist_ok=True)
+            os.makedirs('PDF_fits', exist_ok=True)
             
             len_tab = len(params.main_tab)
             

@@ -15,7 +15,6 @@ homedir = os.getenv("HOME")
 sys.path.insert(0, 'utils')
 from param_utils import Params
 
-
 def get_bayes_list(results):
     
     #grab the column names from results.fits
@@ -52,43 +51,45 @@ def generate_pdf_pngs(results, destination, index, delete_fits=False):
     fig, ax = plt.subplots(3, 3,figsize=(26,16))
     fig.suptitle(f'{galaxy_id} Probability Distribution Functions',fontsize=30,y=0.92)
     ax = ax.flatten()
-
+    
     for n, item in enumerate(bayes_list):
         
         x_val = results[item][index]
         x_err = results[item+'_err'][index]
         
-        ax[n].axvline(np.log10(x_val),color='red',ls='-.',label=f'Bayes Value = {np.log10(x_val):.3f}')
+        ax[n].axvline(x_val,color='red',ls='-.',label=f'Bayes Value = {x_val:.3e}')
         ax[n].axvspan(x_val-x_err, x_val+x_err, alpha=0.1, color='red')   #shaded region
 
         item = item.replace('bayes.','')
         prob_tab = Table.read(f'{destination}out/{galaxy_id}_{item}.fits')
-        
-        ax[n].plot(np.log10(prob_tab[0][:]),prob_tab['probability'])
 
-        best_value = np.log10(results['best.'+item][index])
-        ax[n].axvline(np.log10(results['best.'+item][index]),color='black',ls='--',
-                      label=f'Best Value = {best_value:.3f}')
+        xcol=[c for c in prob_tab.colnames if c != 'probability'][0]
+        
+        ax[n].plot(prob_tab[xcol],prob_tab['probability'],marker='o',color='tab:blue')
+                
+        #add row to the df
+        df[f'probability_{item}'] = list(prob_tab['probability'])
+        
+        best_value = results['best.'+item][index]
+        ax[n].axvline(results['best.'+item][index],color='black',ls='--',
+                      label=f'Best Value = {best_value:.3e}')
 
         ax[n].set_xlabel(f'log({item})',fontsize=20)
         ax[n].tick_params(axis='both', labelsize=14)
 
         ax[n].legend(fontsize=15)
-        
-        plt.savefig(f'{destination}out/PDF_fits/{galaxy_id}_PDF.pdf', 
+
+        fig.savefig(f'{destination}out/PDF_fits/{galaxy_id}_PDF.pdf', 
                     bbox_inches='tight', pad_inches=0.2, dpi=100)
         plt.close()
-        
-        #create empty table into which I will add all read-in variables and probabilities
-        df[f'probability_{item}'] = np.ndarray.tolist(prob_tab[1][:])
-            
+    
     corner_plots(df,destination,galaxy_id)
     
     #removes the .fits used for the PDFs (9 per galaxy)
     if delete_fits:
         os.system(f'rm {destination}out/{galaxy_id}*.fits')
     else:
-        os.system(f'mv {destination}out/{galaxy_id}*.fits {destination}/PDF_fits')
+        os.system(f'mv {destination}out/{galaxy_id}*.fits {destination}out/PDF_fits')
 
     
 def corner_plots(df,destination,galaxy_id,color='orange'):
@@ -117,5 +118,10 @@ if __name__ == "__main__":
     
     results = Table.read(f'{params.destination}out/results.fits')
     
+    #ensure output directory exists...
+    pdf_dir = os.path.join(params.destination, 'out', 'PDF_fits')
+    os.makedirs(pdf_dir, exist_ok=True)
+    
     for index in range(len(results)):
         generate_pdf_pngs(results, params.destination, index, params.delete_pdf_fits)
+        print('Finished!')
