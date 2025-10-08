@@ -16,6 +16,7 @@ import os
 homedir=os.getenv("HOME")
 
 min_count=10
+BIN_WIDTH=0.5
 
 #read in dataframe
 def read_df(param_dict):
@@ -56,7 +57,6 @@ def get_ytest_ypred(df, feature_names, param_dict, random_state=42):
                                      test_size=float(param_dict['test_size']), 
                                      n_trees=int(param_dict['n_trees']), 
                                      max_depth=int(param_dict['max_depth']), 
-                                     bin_width=0.3, 
                                      threshold_width=float(param_dict['threshold_width']),
                                      regression_plot=False, importances_plot=False, 
                                      random_state=random_state)
@@ -175,30 +175,49 @@ def create_cornerplot(df, feature_names):
             
             ax.legend(fontsize=6.5)
             
-        ax.grid(alpha=0.3)
+        ax.grid(alpha=0.4)
 
 
-def plot_comps(df, feature_names, y_test, y_pred, median=False):
+def plot_comps(df, feature_names, y_test, y_pred, median=False, ax=None):
     '''
     NOTE: median=True will plot the median data rather than the confidence interval widths
     '''
     
     df_clean = clean_the_df(df)
     
-    plt.figure(figsize=(10, 5))
-
+    if ax is None:
+        fig, ax = plt.subplots()
+    
     #SINGLE-PARAMETER FUNCTION FITS
     names=[r'log$\Sigma_{M0}$', r'log$\Sigma_{M2}$', r'log$\Sigma_{M5}$', r'log$\Sigma_{M7}$', r'log$\Sigma_{M15}$', r'$\Sigma_5$', r'$\Sigma_{10}$']
     
     #colors = ["#ff0000","#ff6600","#c0ff00","#39ff00","#00ff73","#00ffdc", "#0099ff", 
     #          "#0022ff", "#4d00ff", "#b200ff", "#ff00a2"]
+    
     colors = ["#DC143C", "#FF5C00", "#DAA520", "#008000", "#0000FF", "#4B0082", "#EE82EE"]
+
+    #RFR MODEL
+    bin_centers_model, stats_model, mask_model = get_RFR_stats(y_test, y_pred, bin_width=BIN_WIDTH)
+    
+    CI_width_model = stats_model['high'] - stats_model['low']
+    yvar_model = CI_width_model
+    y_label = '68% Confidence Interval Width [dex]'
+    ylim = None, None
+    
+    if median:
+        yvar_model = stats_model['median']
+        yvar_model = bin_centers_model - yvar_model
+        
+        y_label = r'log(M$_{200T})_{pred.}$ - log(M$_{200T})_{Actual}$ [dex]'
+        
+        ylim = -0.7, None
     
     for i, feature in enumerate(['log_Sigma_M0','log_Sigma_M2','log_Sigma_M5','log_Sigma_M7','log_Sigma_M15','Sigma_5','Sigma_10']):
         
+        #SINGLE FEATURES
         y_true_feature, y_pred_feature = get_feature_fit_predictions(df_clean, feature)
         
-        bin_centers, stats = confidence_intervals(y_true_feature, y_pred_feature, bin_width=0.5)
+        bin_centers, stats = confidence_intervals(y_true_feature, y_pred_feature, bin_width=BIN_WIDTH)
         bin_centers = np.asarray(bin_centers)
         mask = (stats['count']>=min_count)
         
@@ -207,42 +226,44 @@ def plot_comps(df, feature_names, y_test, y_pred, median=False):
         
         if median:
             yvar = stats['median']
-        
-        plt.plot(bin_centers[mask], yvar[mask], alpha=0.5, ls='--', label=names[i], 
-        color=colors[i])
-        #color=f"#{random.randint(0,255):02x}{random.randint(0,255):02x}{random.randint(0,255):02x}")
-        
-    #RFR MODEL
-    bin_centers_model, stats_model, mask_model = get_RFR_stats(y_test, y_pred, bin_width=0.5)
-    
-    CI_width_model = stats_model['high'] - stats_model['low']
-    yvar_model = CI_width_model
-    y_label = '68% Confidence Interval Width [dex]'
-    
-    if median:
-        yvar_model = stats_model['median']
-        y_label = r'Median Tempel+2017 log(M$_{200T}$) [dex]'
-    
-    plt.xlabel(r'Predicted log(M$_{200T}$) [dex]',fontsize=14)
-    plt.ylabel(y_label,fontsize=14)
-    
-    plt.plot(bin_centers_model[mask_model], yvar_model[mask_model], label='ML Model', color='black', lw=2)
-    
-    #plt.xlim(9.6,15)
-    plt.grid(alpha=0.2)
-    
-    loc_='lower left'
-    if median:
-        loc_='lower right'
-    
-    legend_ = plt.legend(fontsize=10, ncol=2, handlelength=1, loc=loc_)  #, frameon=False,
+            yvar = bin_centers - yvar
 
-    # change the line width for the legend
-    for line in legend_.get_lines():
-        line.set_linewidth(3.0)
+        ax.plot(bin_centers[mask], yvar[mask], alpha=0.5, ls='--', label=names[i], 
+            color=colors[i])
+
+    ax.plot(bin_centers_model[mask_model], yvar_model[mask_model], label='ML Model', color='black', lw=2)
     
-    plt.show()
-                
+    ax.grid(alpha=0.05, color='gray')
+
+    ax.set_xlabel(r'Predicted log(M$_{200T}$) [dex]', fontsize=15)
+    ax.set_ylabel(y_label, fontsize=14.5)
+    ax.grid(alpha=0.05, color='gray')
+
+    if median:
+        ax.axhline(0, ls='-.', color='gray', lw=2, alpha=0.25, label='1-to-1')
+        legend_ = ax.legend(fontsize=14, ncol=3, handlelength=1, loc='upper left')
+        for line in legend_.get_lines():
+            line.set_linewidth(3.0)
+
+    ax.set_xlim(12, 15)
+    ax.set_ylim(ylim)
+    ax.tick_params(axis='x', labelsize=14)
+    ax.tick_params(axis='y', labelsize=14)
+    
+    if ax is None:
+        plt.show()
+        return
+    
+    
+def plot_comps_all(df, feature_names, y_test, y_pred):
+    
+    fig, axes = plt.subplots(nrows=2,ncols=1,figsize=(10,10))
+    plt.subplots_adjust(wspace=0.4)
+    ax1, ax2 = axes.flat
+        
+    plot_comps(df, feature_names, y_test, y_pred, ax=ax1, median=True)
+    plot_comps(df, feature_names, y_test, y_pred, ax=ax2, median=False)   
+
 
 if __name__ == "__main__":
     
@@ -256,5 +277,5 @@ if __name__ == "__main__":
     y_test, y_pred = get_ytest_ypred(df, feature_names, param_dict)
     
     #create_cornerplot(df, feature_names)
-    plot_comps(df, feature_names, y_test, y_pred, median=True)  #comparison between data and modelllllll.
-    plot_comps(df, feature_names, y_test, y_pred)   #same comparison, but with CIssssssssss.
+    plot_comps_all(df, feature_names, y_test, y_pred)  #comparison between data and modelllllll.
+    #plot_comps(df, feature_names, y_test, y_pred)
