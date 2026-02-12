@@ -17,16 +17,15 @@ Various scripts for the analysis of nearby galaxies in the local Universe, prima
        
         * Define the two tables,
         
-        ```
-        wisesize_table = Table.read(homedir+'/Desktop/wisesize/wisesize_v4.fits')
-        nedlvs_table = Table.read(homedir+'/Desktop/wisesize/NEDbyname-NEDLVS_20210922_v2.fits')
-        ```
+        `wisesize_table = Table.read(homedir+'/Desktop/wisesize/wisesize_v4.fits')`
+        `nedlvs_table = Table.read(homedir+'/Desktop/wisesize/NEDbyname-NEDLVS_20210922_v2.fits')`
+        
+        * Note --> may switch to `NEDLVS_20250602.fits` later on. For now, we are simply using what JM has given us.
         
         * Then...run
         
-        ```
-        create_parent(wisesize_table, nedlvs_table, version=1)
-        ```
+        
+        `create_parent(wisesize_table, nedlvs_table, version=1)`
        
         * The output will be saved as `/Users/k215c316/Desktop/wisesize/nedlvs_parent_v1.fits`
         * Row-matched to full NED-LVS, contains WISESize_flag, SNR_flag, OBJID, RA, DEC, Z, Mstar_all_flag, SFR_flag, sSFR_flag, Mstar_size_flag

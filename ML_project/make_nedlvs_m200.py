@@ -4,7 +4,9 @@ AIM: create halo mass predictions for all NED-LVS galaxies in the mass complete 
 
 import numpy as np
 import pandas as pd
+
 import sys
+
 import os
 homedir=os.getenv("HOME")
 
@@ -32,15 +34,19 @@ def create_volume_flag(parent_sample):
 
 def create_volume_sample(parent_sample, volume_flag):
     '''
-    Aim: trim nedlvs_parent such that the only galaxies remaining are those withing the mass complete WISESize volume.
+    Aim: trim parent sample such that the only galaxies remaining are those withing the mass complete WISESize volume.
     '''
 
-    #remember the .npy files of features and labels? we need them now.
-    SigmaM_features = np.load(homedir+'/Desktop/SigmaMfeatures.npy', allow_pickle=True).tolist()
-    SigmaM_names = np.load(homedir+'/Desktop/SigmaMnames.npy', allow_pickle=True).tolist()
-    Sigmak_features = np.load(homedir+'/Desktop/Sigmakfeatures.npy', allow_pickle=True).tolist()
-    Sigmak_names = np.load(homedir+'/Desktop/Sigmaknames.npy', allow_pickle=True).tolist()
-
+    try:
+        #remember the .npy files of features and labels? we need them now.
+        SigmaM_features = np.load(homedir+'/Desktop/SigmaMfeatures.npy', allow_pickle=True).tolist()
+        SigmaM_names = np.load(homedir+'/Desktop/SigmaMnames.npy', allow_pickle=True).tolist()
+        Sigmak_features = np.load(homedir+'/Desktop/Sigmakfeatures.npy', allow_pickle=True).tolist()
+        Sigmak_names = np.load(homedir+'/Desktop/Sigmaknames.npy', allow_pickle=True).tolist()
+    except FileNotFoundError:
+        print('One or more Sigma*.npy files not found.')
+        sys.exit()                           
+        
     #row match the above feature columns to parent galaxy catalog
     parent_sample_ = rowmatch_to_catalog(parent_sample, SigmaM_features, SigmaM_names, Sigmak_features, Sigmak_names)
 
@@ -63,7 +69,7 @@ def create_volume_sample(parent_sample, volume_flag):
 
     #save progress...just in case.
     df_vol.to_csv(homedir+'/Desktop/ML_features_wisesizevolume.csv', index=False)
-    print('Dataframe contains galaxies in the mass complete WISESize volume is created.')
+    print('Dataframe created for galaxies in the mass complete WISESize volume.')
     
     return df_vol
 
@@ -88,7 +94,7 @@ def make_m200_model(df, feature_names, param_dict):
                               bin_width=float(param_dict['bin_width']), threshold_width=float(param_dict['threshold_width']),
                               min_bin_count=float(param_dict['min_bin_count']), method=str(param_dict['method']),
                               regression_plot=False, importances_plot=False)
-    
+
     return model
 
 
@@ -99,14 +105,22 @@ def add_parent_m200(parent_sample, df_vol):
         * all non-df_vol galaxies will receive logM200=NaN
     '''
 
+    #convert parent_sample from astropy table to dataframe
+    parent_sample = parent_sample.to_pandas()
+    
     #in case the column is byte or bytearray type, convert to str
     df_vol['OBJNAME'] = df_vol['OBJNAME'].astype('str')
     parent_sample['OBJNAME'] = parent_sample['OBJNAME'].astype('str')
 
     #helper function to convert byte string ("b'VFID0000'") to a proper string ("VFID0000")
     def decode_if_bytes(x):
-        x = x.replace('b','')
-        x = x.replace("'","")
+        if isinstance(x, (bytes, bytearray)):
+            return x.decode('utf-8', errors='ignore')
+        x = str(x)
+        if x.startswith("b'") and x.endswith("'"):
+            return x[2:-1]
+        if x.startswith('b"') and x.endswith('"'):
+            return x[2:-1]
         return x
     
     #convert all byte strings to strings, if applicable.
@@ -121,10 +135,27 @@ def add_parent_m200(parent_sample, df_vol):
 
 
 #need if loading script as a module
-def run_all(df, parent_sample, param_dict):
+def run_all(params_path='rf_regression_parameters.txt', save=True):
     '''
-    Aim: run all of the functions from model generation to adding the logM200 column to the parent sample.
+    Aim: run all of the functions from loading the parameters dictionary to model generation to adding the logM200 column to the parent sample.
     '''
+    
+    #create dictionary with keyword and values from parameters txtfile
+    param_dict = read_params(params_path)
+    
+    #grab the df, parent sample paths from the parameters txtfile
+    df_path = param_dict['df_path']
+    parent_sample_path = param_dict['parent_sample']
+    
+    #load parent sample as a df
+    parent_sample = Table.read(homedir+parent_sample_path)
+    
+    #load dataframe, if it exists
+    try:
+        df = pd.read_csv(homedir+df_path)
+    except FileNotFoundError:
+        print('df not found. please generate the .csv file first before running.')
+        sys.exit()
     
     #pull feature names from param_dict. might be [] (empty list), and if so default to reading from .npy files.
     feature_names = parse_force_features(param_dict)
@@ -146,6 +177,12 @@ def run_all(df, parent_sample, param_dict):
     
     parent_m200 = add_parent_m200(parent_sample, df_vol)
     
+    if save:
+        save_path=homedir+'/Desktop/nedlvs_logm200.csv'
+        parent_m200.to_csv(save_path, index=False)
+        print(f'parent_m200 is now saved to {save_path}.')
+        return
+    
     return parent_m200
 
 
@@ -153,33 +190,10 @@ def run_all(df, parent_sample, param_dict):
 if __name__ == "__main__":
     
     import argparse
+    parser = argparse.ArgumentParser(description="Add logM200 column to the parent sample specified in the input parameters txtfile.")
+
+    parser.add_argument("-params", type=str, default='rf_regression_parameters.txt', help="Input parameters for RF regression model and setup.")
     
-    parser = argparse.ArgumentParser(description="Create ML model to predict log(M200) or environment class.")
-    
-    default_params_path = homedir+'/github/wisesize/ML_project/rf_regression_parameters.txt'
-    
-    parser.add_argument("-df", type=pd.core.frame.DataFrame, default=None, help="Input features/class pandas dataframe; defaults to looking for relevant file(s) on Desktop.")
-    parser.add_argument("-features", type=list, default=None, help="Input list of feature column names; defaults to looking for relevant file(s) on Desktop.")
-    parser.add_argument("-params", type=str, default=default_params_path, help="Input parameters for RF regression model and setup.")
-    
-    args = parser.parse_args()
-    
-    #create dictionary with keyword and values from param textfile...
-    param_dict = read_params(args.params)
-    
-    df_path = param_dict['df_path']
-    parent_sample_path = param_dict['df_path']
-    
-    parent_sample = Table.read(parent_sample_path).to_pandas()
-    
-    try:
-        df = pd.read_csv(homedir+df_path)
-    except:
-        print('df not found. please generate the .csv file first before running.')
-        sys.exit()
-    
-    parent_m200 = run_all(df, parent_sample, param_dict)
-    
-    save_path=homedir+'/Desktop/nedlvs_logm200.csv'
-    parent_m200.to_csv(save_path, index=False)
-    print(f'parent_m200 is now saved to {save_path}.')
+    args = parser.parse_args()    
+
+    parent_m200 = run_all(args.params)

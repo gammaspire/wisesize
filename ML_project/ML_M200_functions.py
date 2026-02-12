@@ -403,29 +403,25 @@ def rowmatch_to_catalog(full_catalog, SigmaM_features, SigmaM_names, Sigmak_feat
     from astropy.table import Table
     import numpy as np
     
-    #redefining to a variable I used below. can't be bothered switching it out.
-    cat_full = full_catalog
-    
     #combine the features...
     features = SigmaM_features + Sigmak_features   #joining two lists
     names = SigmaM_names + Sigmak_names  #joining two lists
     
     #create flags and row match the above arrays to the full catalog
-    raflag = (cat_full['RA']>87) & (cat_full['RA']<300)
-    decflag = (cat_full['DEC']>-10) & (cat_full['DEC']<85)
-    mstarflag = cat_full['Mstar_all_flag']
-    zflag = (cat_full['Z']>0.002) & (cat_full['Z']<0.025)
+    raflag = (full_catalog['RA']>87) & (full_catalog['RA']<300)
+    decflag = (full_catalog['DEC']>-10) & (full_catalog['DEC']<85)
+    mstarflag = full_catalog['Mstar_all_flag']
+    zflag = (full_catalog['Z']>0.002) & (full_catalog['Z']<0.025)
 
     #these are ALL flags applied to the input cat table for Sigma_*
     flags = (mstarflag) & (zflag) & (raflag) & (decflag)
-    
     
     #create placeholder for row-matched features (helps avoid memory troubles!!)
     matched_features = []
     
     for n in range(len(features)):
                 
-        template = np.full(len(cat_full), -999.0)
+        template = np.full(len(full_catalog), -999.0)
         
         try:
             template[flags] = features[n]
@@ -436,8 +432,8 @@ def rowmatch_to_catalog(full_catalog, SigmaM_features, SigmaM_names, Sigmak_feat
         matched_features.append(template)
         
     #add these Sigma_* columns to the full catalog
-    cat_full.add_columns(matched_features,
+    full_catalog.add_columns(matched_features,
                           names=names)
     
     #heee go.
-    return cat_full
+    return full_catalog
