@@ -3,6 +3,14 @@ df_path                           /Desktop/ML_features.csv   #path to pandas dat
 feature_path_SigmaM               /Desktop/SigmaMnames.npy   #path to numpy file containing all Sigma_M feature column names
 feature_path_Sigmak               /Desktop/Sigmaknames.npy   #see above; for Sigma_k column names
 
+parent_sample                     /Desktop/wisesize/nedlvs_parent_v1.fits   #path to NEDLVS parent sample table
+
+
+####################################
+# RANDOM FOREST & XGBOOST PARAMETERS
+####################################
+
+
 n_trees                           200                   #Number of decision trees for creating the random forest model.
 
 max_depth                         15                    #hyperparameter for random trees model; governs max number of 
@@ -10,16 +18,44 @@ max_depth                         15                    #hyperparameter for rand
 
 random_state                      42                    #The 'random state' integer for the RFR model. Keep same to reproduce 
                                                         #same model each time or vary to gauge model consistency
+                                                        
+test_size                         0.20                  #Defines the fraction of the sample the model will use as test data
 
 
-test_size                         0.20                   #Defines the fraction of the sample the model will use as test data
+#############################
+# XGBOOST-SPECIFIC PARAMETERS
+#############################
+
+learning_rate                     0.1                  #Scaling factor for each tree's contribution to the entire model.
+                                                       #Smaller values -- model learns a bit more slowly 
+                                                       #and may require more trees -- but also more robust!
+
+subsample                         0.8                  #Fraction of the training rows used to build each tree 
+                                                       #(row sampling without replacement).
+                                                       #Some value 0.6-0.9 can reduce overfitting.
+                                                       #Too low and you risk underfitting.
+                                                       
+colsample_bytree                  1.0                  #Fraction of features used to build each tree.
+                                                       #If there are few features, then it is appropriate to choose 1.0,
+                                                       #as a lower number could severely underrepresent features.
+                                                       
+tree_method                       hist                 #The algorithm which XGBoost uses to build the trees. 'hist'
+                                                       #is an acceptable default for medium-large datasets.
 
 
-force_features_list               ['log_Sigma_M0','log_Sigma_M2','log_Sigma_M5','log_Sigma_M7','log_Sigma_M15']
+
+
+#############################
+# FEATURE AND PLOT PARAMETERS
+#############################
+
+
+force_features_list   ['log_Sigma_M0','log_Sigma_M2','log_Sigma_M5','log_Sigma_M7','log_Sigma_M15']
                                                    
                                                    #force the model to use the features given in this list!
                                                    #this set of features will be used in place of the full feature set,
-                                                   #including when running the optimization code for use_optimal_features=1.
+                                                   #including when running the optimization code for 
+                                                   #use_optimal_features=1.
                                                    #use [] (empty list) to default to all features! 
                                                    #features must be comma-separated, NO SPACES!
                                                    #EXAMPLE: [Sigma_M4,Sigma_M5,ratio_SigmaM_1,Sigma_ngal_2]

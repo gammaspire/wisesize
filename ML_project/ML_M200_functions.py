@@ -441,5 +441,3 @@ def rowmatch_to_catalog(full_catalog, SigmaM_features, SigmaM_names, Sigmak_feat
     
     #heee go.
     return cat_full
-    
-    

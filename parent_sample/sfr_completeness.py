@@ -77,23 +77,31 @@ def get_sfrflag(sfr_cut):
     sfr_flag = (sfr_cut > sfr_limit)
     
     return sfr_limit, sfr_flag
-    
-    
-#CUT. BY. SNR. FIRST. BEFORE. RUNNING.
-def sfr_completeness(z, logSFR, percentile=.8, logMstar=None, plot=False):
-    
-    #extract the redshift flag. isolates galaxies above the percentile
-    z_flag = get_zflag(z, percentile)
-    
-    #actually isolate those galaxies using the flag
-    sfr_cut = logSFR[z_flag]
-    
-    #extract the sfr flag. isolates galaxies with SFRs higher than the lowest 5% at the farthest distances in our sample.
-    sfr_limit, sfr_flag = get_sfrflag(sfr_cut)
-        
+
+
+def sfr_completeness(z, logSFR, z_quantile=0.8, sfr_quantile=0.05, plot=False, logMstar=None):
+    """
+    Heuristic SFR completeness limit:
+    - take galaxies above the z_quantile of z (e.g. top 20% in redshift)
+    - define completeness as the sfr_quantile of logSFR in that high-z subset (e.g. 5th percentile)
+
+    Assumes you've already applied your WISE SNR cut before calling.
+    """
+    z = np.asarray(z)
+    logSFR = np.asarray(logSFR)
+
+    #some fun filters -- do not want infinite values.
+    ok = np.isfinite(z) & np.isfinite(logSFR)
+    z = z[ok]
+    logSFR = logSFR[ok]
+
+    z_lim = np.quantile(z, z_quantile)
+    highz = z >= z_lim
+
+    sfr_limit = np.quantile(logSFR[highz], sfr_quantile)
+
     if plot:
         plot_sfrmstar(logSFR, logMstar, sfr_limit, hexbin=True, nbins=200)
-
-    print(f'SFR Completeness: {sfr_limit:.3f}')
     
+    print(f"SFR Completeness (heuristic): {sfr_limit:.3f}")
     return sfr_limit
