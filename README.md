@@ -3,7 +3,7 @@ Various scripts for the analysis of nearby galaxies in the local Universe, prima
 
 # *Currently Under Reconstruction to Transition from NED-LVS to SGA-2025 Dataset!*
 
-# See wisesize_parent.ipynb in the root directory to 
+# See wisesize_parent.ipynb in the root directory to see latest parent catalog updates.
 
 ### How to Create nedlvs_parent_v{#}.fits Catalog
 
