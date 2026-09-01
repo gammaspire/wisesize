@@ -177,10 +177,7 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-#the irrelevant run_cigale_split directory!
-wiseseds/run_cigale_split
-
-#the also irrelevant python notebook for evaluating results...
-wiseseds/eval_cigale_results.ipynb
+#let us also hide the archive
+archive/
 
 # End of https://www.toptal.com/developers/gitignore/api/python
