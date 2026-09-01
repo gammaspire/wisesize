@@ -17,15 +17,15 @@ from mass_completeness import *
 from sfr_completeness import *
 
 
-def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
+def create_parent(wisesize_table, sga2025_table, luminosity_table, version=1):
     
-    save_path=homedir+f'/Desktop/wisesize/nedlvs_parent_v{version}.fits'
+    save_path=homedir+f'/Desktop/wisesize/wisesize_parent_v{version}.fits'
 
     #convert objnames from tempel catalog to a set
     wisesize_names = set(wisesize_table['OBJNAME'])
 
-    #create a boolean mask for whether each name in the parent table is in the nedlvs-tempel2017 table
-    wisesize_flag = [name in wisesize_names for name in nedlvs_table['OBJNAME']]
+    #create a boolean mask for whether each name in the parent table is in the sga2025-tempel2017 table
+    wisesize_flag = [name in wisesize_names for name in sga2025_table['OBJNAME']]
 
     #create a set of {objname: objid}
     name_to_id = {
@@ -33,10 +33,10 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
         for objname, objid in zip(wisesize_names, wisesize_table['OBJID'])
     }
 
-    #apply mapping to nedlvs_table, defaulting to '--'
+    #apply mapping to sga2025_table, defaulting to '--'
     objids = [
         name_to_id.get(str(name), '--')
-        for name in nedlvs_table['OBJNAME']
+        for name in sga2025_table['OBJNAME']
     ]
 
 
@@ -50,7 +50,7 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
     t_gal = luminosity_table[luminosity_table['objtype']=='G']
     
     #create Mstar (all) flag!
-    #this will correspond to the Mstar limit for ALL NED-LVS galaxies
+    #this will correspond to the Mstar limit for ALL* SGA-2025 galaxies
     mag_lim = 16.6
     mag = t_gal['m_J']
 
@@ -90,7 +90,7 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
     #create SFR flag; default percentile is 0.8 to isolate the 20% farthest galaxies according to redshift
     #returns a number
     #must apply S/N flag first!
-    SFR_limit = sfr_completeness(nedlvs_table['Z'][snr_combined_flag],
+    SFR_limit = sfr_completeness(sga2025_table['Z'][snr_combined_flag],
                                  np.log10(luminosity_table['SFR_hybrid'][snr_combined_flag]), percentile=0.8, plot=False)
     
     SFR_flag = np.log10(luminosity_table['SFR_hybrid'])>SFR_limit
@@ -101,8 +101,8 @@ def create_parent(wisesize_table, nedlvs_table, luminosity_table, version=1):
     sSFR_flag = np.log10(luminosity_table['SFR_hybrid']/luminosity_table['Mstar'])>sSFR_limit
     
     
-    parent_table = Table([nedlvs_table['OBJNAME'],objids,nedlvs_table['RA'],
-                              nedlvs_table['DEC'],luminosity_table['z'],nedlvs_table['OBJTYPE'],
+    parent_table = Table([sga2025_table['OBJNAME'],objids,sga2025_table['RA'],
+                              sga2025_table['DEC'],luminosity_table['z'],sga2025_table['OBJTYPE'],
                               wisesize_flag,snr_nuv_flag,snr_w3_flag,snr_combined_flag,
                               Mstar_flag,SFR_flag,sSFR_flag,Mstar_size_flag],
                           names=['OBJNAME','OBJID','RA','DEC','Z','OBJTYPE','WISESize_flag','SNR_NUV_flag',

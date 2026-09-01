@@ -1,9 +1,13 @@
 # WISESize Project
 Various scripts for the analysis of nearby galaxies in the local Universe, primarily using GALEX UV, Legacy Survey grz, and WISE infrared bands.
 
-## How to Create nedlvs_parent_v{#}.fits Catalog
+# *Currently Under Reconstruction to Transition from NED-LVS to SGA-2025 Dataset!*
 
-### Generate the Scaffold
+# See wisesize_parent.ipynb in the root directory to 
+
+### How to Create nedlvs_parent_v{#}.fits Catalog
+
+#### Generate the Scaffold
     * Download full NED-LVS catalog
     * Pull WISESize sample catalog from draco (after merging the north and south catalogs using that .py script I wrote for mucho-galfit (wisesize branch))
     * With these two tables, 
@@ -34,11 +38,11 @@ Various scripts for the analysis of nearby galaxies in the local Universe, prima
                 * Mstar_all_flag is the mass completeness flag for the FULL NED-LVS (for 2D-5NN, etc.)
                 * Mstar_size_flag is the mass completeness flag for WISESize (for GALFIT, etc.)
 
-### Add Mass Completeness, SFR Completeness, and sSFR Flags
+#### Add Mass Completeness, SFR Completeness, and sSFR Flags
 
 Companion notebooks located in `$wisesize/parent_sample/` but are also run as part of the Scaffold table in the above step
 
-### Add Tempel Environment Flags 
+#### Add Tempel Environment Flags 
     * Full instructions with commentary given in `~/github/wisesize/tempel_catalogs.ipynb`
     * Alternatively, in python script or Jupyter Notebook,
     
@@ -73,9 +77,9 @@ Companion notebooks located in `$wisesize/parent_sample/` but are also run as pa
     write_nedlvs_parent(updated_nedlvs_parent, path_to_folder, version_integer=1)
     ```
 
-### Add Fifth-Nearest-Neighbor Column
-#### Note: Only run AFTER mass completeness, SFR completeness, sSFR completeness flags are added to parent catalog
-#### - THEN run on parent catalog; flags will automatically be applied
+#### Add Fifth-Nearest-Neighbor Column
+##### Note: Only run AFTER mass completeness, SFR completeness, sSFR completeness flags are added to parent catalog
+##### - THEN run on parent catalog; flags will automatically be applied
 
 INCOMPLETE:
 * Run through kNN_local_density.ipynb to get 2D_5NN (and possibly 2D_3NN)
