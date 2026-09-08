@@ -180,4 +180,9 @@ pyrightconfig.json
 #let us also hide the archive
 archive/
 
+#the sonification mp3, mp4
+sonification/saved_mp4files/*
+sonification/saved_wavfiles/*
+midigui_research_untouched.py
+
 # End of https://www.toptal.com/developers/gitignore/api/python
