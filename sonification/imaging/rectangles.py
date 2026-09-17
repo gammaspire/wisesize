@@ -8,12 +8,12 @@ def get_rectangle_bounds(event_bounds, angle, im_length, one_rot=None, two_rot=N
     '''
     #use user-drawn rectangle in order to define xmin, xmax; ymin, ymax. if no rectangle drawn, then default to image width for x and some fraction of the height for y.
     try:
-        #for the case where the rectangle is not rotated...
+        #for the case where the rectangle is not rotated...round event bounds to nearest integer
         if angle == 0:
-            xmin = min(int(event_bounds[0]), int(event_bounds[2]))
-            xmax = max(int(event_bounds[0]), int(event_bounds[2]))
-            ymin = min(int(event_bounds[1]), int(event_bounds[3]))
-            ymax = max(int(event_bounds[1]), int(event_bounds[3]))
+            xmin = min(int(round(event_bounds[0])), int(round(event_bounds[2])))
+            xmax = max(int(round(event_bounds[0])), int(round(event_bounds[2])))
+            ymin = min(int(round(event_bounds[1])), int(round(event_bounds[3])))
+            ymax = max(int(round(event_bounds[1])), int(round(event_bounds[3])))
         #rectangle IS rotated
         else:
             xvertices = np.array([one_rot[0], two_rot[0], three_rot[0], four_rot[0]])
@@ -245,6 +245,10 @@ def sample_vertical_rectangle(image, xmin, xmax, ymin, ymax, image_alt=None):
         Optional comparison image.
     '''
 
+    #increment xmax, ymax by 1 so the bar animation fully sweeps+samples the rectangular region
+    xmax += 1
+    ymax += 1
+    
     cropped_data = image[ymin:ymax, xmin:xmax]
 
     mean_list = []

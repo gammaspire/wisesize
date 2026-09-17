@@ -31,13 +31,16 @@ def create_base_figure(dat, band, galaxy_name, t_data, midi_data, vel_data, xmin
     ax2.text(0.05, 0.95, band, horizontalalignment='left', verticalalignment='top', transform=ax2.transAxes,
              color='green', fontsize=13, fontweight='bold', backgroundcolor='white')
     
+    ax2.set_xlim(0, dat.shape[1]-1)
+    ax2.set_ylim(0, dat.shape[0]-1)
+    
     #the scatterplot "highlighting circle" initialization
     point1a, = ax1.plot([], [], 'ro', markersize=20, alpha=0.2)
     
     #the galaxy image's "sweeping bar" initialization
     line2, = ax2.plot([], [], lw=1)
     
-    sweep_line2, v = ax2.plot(xmin, ymin, xmax, ymax, lw=2, color='green')
+    sweep_line2, = ax2.plot([xmin, xmax], [ymin, ymax], lw=2, color='green')
 
     ax1.set_xlabel('Time interval (s)', fontsize=12)
     ax1.set_ylabel('MIDI note', fontsize=12)
@@ -62,7 +65,9 @@ def add_overlay_subplot(ax1, ax3, dat_alt, band_alt, t_data, midi_data_alt,
     norm_im = simple_norm(dat_alt, 'asinh', min_percent=0.5, max_percent=99.9, min_cut=v1, max_cut=v2)
 
     ax3.imshow(dat_alt, origin='lower', norm=norm_im, cmap='gray', alpha=0.9)
-
+    ax3.set_xlim(0, dat_alt.shape[1]-1)
+    ax3.set_ylim(0, dat_alt.shape[0]-1)
+    
     sweep_line3, = ax3.plot([xmin, xmax], [ymin, ymax], lw=2, color='tab:orange')
 
     ax3.text(0.05, 0.95, band_alt, horizontalalignment='left', verticalalignment='top', 

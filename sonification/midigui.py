@@ -43,7 +43,7 @@ class App(tk.Tk):
     def __init__(self, path_to_repos, initial_browsedir, soundfont, window_geometry):          #INITIALIZE; will always run when App class is called.
         tk.Tk.__init__(self)     #initialize tkinter; *args are parameter arguments, **kwargs can be dictionary arguments
         
-        self.title('MIDI-chlorians: Sonification of Nearby Galaxies')
+        self.title('MIDI-CHLORIANS: Sonification of Nearby Galaxies')
         self.geometry(window_geometry)
         self.resizable(True,True)
         self.rowspan=10
@@ -418,10 +418,10 @@ class MainPage(tk.Frame):
         self.angle_button = tk.Button(self.frame_box, text='Rotate',padx=5,pady=10,font=self.helv20,
                                       command=self.create_rectangle)
         self.angle_button.grid(row=2,column=1,columnspan=3)
-        self.incarrow = tk.Button(self.frame_box, text='+1',padx=1,pady=10,font='Ariel 14',
+        self.incarrow = tk.Button(self.frame_box, text='+5',padx=1,pady=10,font='Ariel 14',
                                   command=self.increment)
         self.incarrow.grid(row=2,column=4,columnspan=1)                          
-        self.decarrow = tk.Button(self.frame_box, text='-1',padx=1,pady=10,font='Ariel 14',
+        self.decarrow = tk.Button(self.frame_box, text='-5',padx=1,pady=10,font='Ariel 14',
                                   command=self.decrement)
         self.decarrow.grid(row=2,column=0,columnspan=1)
     
@@ -594,7 +594,7 @@ class MainPage(tk.Frame):
     
     def build_sonification_data(self, mean_strip_values_alt=None):
 
-        self.t_data = build_time_data(self.mean_list, self.strips_per_beat)
+        self.t_data, self.t_data_sec = build_time_data(self.mean_list, self.strips_per_beat, self.bpm)
         self.midi_data = build_midi_data(self.mean_list, self.note_names,self.y_scale, 
                                          reverse=(int(self.var_rev.get()) == 1))
         self.vel_data = build_velocity_data(self.mean_list, self.vel_min, self.vel_max, self.y_scale)
@@ -818,6 +818,11 @@ class MainPage(tk.Frame):
             except:
                 pass
             try:
+                self.line_anim._stop()
+            except:
+                pass
+            self.line_anim = None
+            try:
                 del self.line_anim
             except:
                 pass
@@ -882,7 +887,7 @@ class MainPage(tk.Frame):
         v1_2 = float(self.v1slider.get())
         v2_2 = float(self.v2slider.get())
         
-        figure_dict = create_base_figure(self.dat, self.band, self.galaxy_name, self.t_data, 
+        figure_dict = create_base_figure(self.dat, self.band, self.galaxy_name, self.t_data_sec, 
                                          self.midi_data, self.vel_data, self.xmin, self.xmax, 
                                          self.ymin, self.ymax, v1=v1_2, v2=v2_2)
         return figure_dict
@@ -894,7 +899,7 @@ class MainPage(tk.Frame):
         self.ymax_anim = int(np.max(self.midi_data+self.midi_data_alt))
 
         overlay_dict = add_overlay_subplot(ax1=ax1, ax3=ax3, dat_alt=self.dat_alt, 
-                                           band_alt=self.band_alt, t_data=self.t_data, 
+                                           band_alt=self.band_alt, t_data=self.t_data_sec, 
                                            midi_data_alt=self.midi_data_alt, vel_data_alt=self.vel_data_alt, 
                                            xmin=self.xmin, xmax=self.xmax, ymin=self.ymin, ymax=self.ymax)
 
@@ -906,11 +911,12 @@ class MainPage(tk.Frame):
     def build_animation(self, fig, point1a, point1b, l2, l3):
         if int(self.var_w1w3.get())>0:
             return build_overlay_animation(fig=fig, point1a=point1a, point1b=point1b, line2=l2, line3=l3,
-                                                xvals_anim=self.xvals_anim, t_data=self.t_data, midi_data=self.midi_data,
-                                                midi_data_alt=self.midi_data_alt, all_line_coords=self.all_line_coords)
+                                           xvals_anim=self.xvals_anim, t_data=self.t_data_sec, 
+                                           midi_data=self.midi_data, midi_data_alt=self.midi_data_alt, 
+                                           all_line_coords=self.all_line_coords)
         else:
             return build_single_band_animation(fig=fig, point1a=point1a, line2=l2, xvals_anim=self.xvals_anim,
-                                                    t_data=self.t_data, midi_data=self.midi_data, 
+                                                    t_data=self.t_data_sec, midi_data=self.midi_data, 
                                                     all_line_coords=self.all_line_coords)
     
     def placeBar(self, event):  
@@ -1017,13 +1023,13 @@ class MainPage(tk.Frame):
         self.create_rectangle()
                 
         if int(self.var_w1w3.get())>0:
-            
+
             self.midi_file = build_overlay_track_midi(self.midi_data, self.midi_data_alt, self.t_data, self.bpm, 
                                                  self.duration, self.program, compare_program=47, threshold=0.10)
         else:
             self.midi_file = build_single_track_midi(self.midi_data, self.vel_data, self.t_data, 
                                                 self.bpm, self.duration, self.program)
-                
+
         self.memfile = midi_to_memfile(self.midi_file)
         self.length_of_file = get_midi_length(self.midi_file)
         play_memfile(self.memfile)
@@ -1075,8 +1081,9 @@ class MainPage(tk.Frame):
         
         self.l, self.line_anim = create_gui_sweep_animation(fig=self.fig, ax=self.ax, xmin=self.xmin, ymin=self.ymin, 
                                                       xmax=self.xmax, ymax=self.ymax, length_of_file=self.length_of_file, 
-                                                      duration=self.duration, t_data=self.t_data, midi_data=self.midi_data, 
-                                                      all_line_coords=self.all_line_coords, update_func=update_gui_sweep)    
+                                                      duration=self.duration, t_data_sec=self.t_data_sec, 
+                                                      midi_data=self.midi_data, all_line_coords=self.all_line_coords, 
+                                                      update_func=update_gui_sweep)    
     def create_midi_animation(self):
         
         self.save_sound()
@@ -1103,7 +1110,8 @@ class MainPage(tk.Frame):
             point1b, l3 = None, None
 
         self.xmin_anim = 0
-        self.xmax_anim = np.max(self.t_data)
+        self.xmax_anim = np.max(self.t_data_sec)
+        self.strip_interval = 60. / (self.bpm * self.strips_per_beat)  #duration of time between notes played
             
         self.xvals_anim = np.arange(0,len(self.midi_data),1)
         
@@ -1111,8 +1119,13 @@ class MainPage(tk.Frame):
              
         ani_savename, ani_both_savename = self.get_animation_filename()
         
+        #for length_of_file...do not use self.length_of_file. there is a discrepancy that is somehow exacerbated
+            #by the duration of the note played. this version for the animation is effective.
+            #self.t_data_sec[-1] is the time of the final note onset, strip_interval is the time between
+                #successive strips/notes
+            #sooo...the animation will span exactly the same onset timeline as the MIDI note sequence
         save_animation(line_anim=line_anim, output_path=ani_savename, n_frames=len(self.xvals_anim),
-                       length_of_file=self.length_of_file)
+                       length_of_file=self.t_data_sec[-1] + self.strip_interval)
         
         del fig     #I am finished with the figure, so I shall delete references to the figure.
         

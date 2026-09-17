@@ -78,11 +78,14 @@ def build_velocity_data(mean_list, vel_min, vel_max, y_scale=0.5):
     return vel_data
 
 
-def build_time_data(mean_list, strips_per_beat=10):
+def build_time_data(mean_list, strips_per_beat=10, bpm=30):
     '''
-    AIM: convert number of strips to time "step" coordinates. 
+    AIM: convert number of strips to time "step" coordinates. Also return a list of t_data in seconds for
+    calibrating the sound with the animations!
     '''
-    return (np.arange(len(mean_list)) / strips_per_beat)
+    t_data = np.arange(len(mean_list)) / strips_per_beat
+    t_data_sec = t_data * (60. / bpm)
+    return t_data, t_data_sec
 
 
 def build_relative_track(midi_data, midi_data_alt, threshold=0.10):
