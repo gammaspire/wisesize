@@ -91,7 +91,7 @@ def build_time_data(mean_list, strips_per_beat=10, bpm=30):
 def build_relative_track(midi_data, midi_data_alt, threshold=0.10):
     '''
     AIM: create the comparison track for W1 and W3 data.
-    * this "comparison" will comprise a percussion (at full volume) that sounds whenever the difference between the W1 and W3 tracks exceeds the threshold of 0.10. 
+    * this "comparison" will comprise a percussion (at full volume) that sounds whenever the difference between the W1 and W3 tracks exceeds the threshold of ... `threshold` (default is 0.10). 
     * this track is then superimposed on the merged wavfile of the W1 and W3 sonified data.
     '''
 

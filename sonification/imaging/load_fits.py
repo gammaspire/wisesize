@@ -16,12 +16,13 @@ def get_galaxy_info(filepath):
     """
 
     filename = filepath.split("/")[-1]
+    band_options = ['g','r','z','W1','W2','W3','W4']
 
     try:
         split_name = filename.replace(".", "-").split("-")
 
         galaxy_name = split_name[0]
-        band = split_name[3]
+        band = next((x for x in band_options if x in split_name), split_name[3])
 
     except Exception:
         print('Selected filename is not split with "-" characters with galaxyband; defaulting to generic wavelength.')

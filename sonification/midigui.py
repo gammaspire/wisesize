@@ -591,6 +591,7 @@ class MainPage(tk.Frame):
         self.bpm = int(self.bpm_entry.get())
         self.program = int(self.program_entry.get())   #the instrument!
         self.duration = float(self.duration_entry.get())
+        self.threshold = 0.10   #threshold for the W1/W3 relative difference - when exceeded, play percussion note
     
     def build_sonification_data(self, mean_strip_values_alt=None):
 
@@ -1025,7 +1026,7 @@ class MainPage(tk.Frame):
         if int(self.var_w1w3.get())>0:
 
             self.midi_file = build_overlay_track_midi(self.midi_data, self.midi_data_alt, self.t_data, self.bpm, 
-                                                 self.duration, self.program, compare_program=47, threshold=0.10)
+                                                 self.duration, self.program, compare_program=47, threshold=self.threshold)
         else:
             self.midi_file = build_single_track_midi(self.midi_data, self.vel_data, self.t_data, 
                                                 self.bpm, self.duration, self.program)
