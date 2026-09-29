@@ -161,7 +161,7 @@ class central_galaxy():
                 cat = cat[ra_dec_flag]
             
             self.trimmed_virgo_env=None
-         
+            
         #needed for VFS comparison, otherwise can ignore.
         else:
             sgy_lower, sgy_upper = get_sgy_bounds(self.sgy)            
@@ -213,7 +213,7 @@ class central_galaxy():
             mask = (sgy >= sgy_lower) & (sgy <= sgy_upper)
             return mask
             
-        z = cat['Z'][indices]
+        z = self.cat['Z'][indices]
         z_lower, z_upper = get_redshift_bounds(self.redshift, vr_limit)
         mask = (z >= z_lower) & (z <= z_upper)
         return mask
@@ -234,8 +234,8 @@ class central_galaxy():
             
         else:
             self.density_kSigma = -999
-      
-    
+
+
     def calc_kSigma_with_tree(self, tree, coord_array, vr_limit, virgo_env=None):
         
         #central galaxy position
@@ -316,7 +316,7 @@ def compute_kNN_densities(vr_limit=500, radius_limit=100, k=5, use_vfs=False, us
         print('Using VFS catalog with SG coordinates.')
     else:
         virgo_env = None
-        cat_full = Table.read(homedir+'/Desktop/wisesize/nedlvs_parent_v1.fits')
+        cat_full = Table.read(homedir+'/Desktop/wisesize/NED-LVS/nedlvs_parent_v1.fits')
         
         try:
             mstarflag = cat_full['Mstar_all_flag']
